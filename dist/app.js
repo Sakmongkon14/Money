@@ -11,7 +11,38 @@ const titleDate = (d) => new Intl.DateTimeFormat(TH, { day: 'numeric', month: 'l
 const monthTitle = (d) => new Intl.DateTimeFormat(TH, { month: 'long', year: 'numeric' }).format(d);
 const WEEK = (d) => addDays(d, -(d.getDay() + 6) % 7);
 const CATEGORIES = { expense: ['อาหารและเครื่องดื่ม', 'เดินทาง', 'ช้อปปิ้ง', 'ที่พักอาศัย', 'บิลและสาธารณูปโภค', 'สุขภาพ', 'ความบันเทิง', 'อื่น ๆ'], income: ['เงินเดือน', 'งานเสริม', 'ขายของ', 'ดอกเบี้ย', 'ของขวัญ', 'อื่น ๆ'] };
-const ICONS = { 'อาหารและเครื่องดื่ม': '☕', 'เดินทาง': '🚕', 'ช้อปปิ้ง': '🛍', 'ที่พักอาศัย': '⌂', 'บิลและสาธารณูปโภค': '▣', 'สุขภาพ': '✚', 'ความบันเทิง': '♫', 'เงินเดือน': '↙', 'งานเสริม': '✦', 'ขายของ': '◈', 'ดอกเบี้ย': '%', 'ของขวัญ': '♡' };
+const ICONS = { 'อาหารและเครื่องดื่ม': 'food', 'เดินทาง': 'car', 'ช้อปปิ้ง': 'bag', 'ที่พักอาศัย': 'home', 'บิลและสาธารณูปโภค': 'receipt', 'สุขภาพ': 'health', 'ความบันเทิง': 'music', 'เงินเดือน': 'wallet', 'งานเสริม': 'work', 'ขายของ': 'bag', 'ดอกเบี้ย': 'percent', 'ของขวัญ': 'gift' };
+const ICON_PATHS = {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
+  chart: '<path d="M4 20V12M10 20V5M16 20v-9M22 20V8"/>',
+  settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06-1.8 1.8-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.52V20h-2.55v-.09a1.65 1.65 0 0 0-1-1.52 1.65 1.65 0 0 0-1.82.33l-.06.06-1.8-1.8.06-.06A1.65 1.65 0 0 0 8.27 15a1.65 1.65 0 0 0-1.52-1H6v-2.55h.09a1.65 1.65 0 0 0 1.52-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06 1.8-1.8.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.52V5h2.55v.09a1.65 1.65 0 0 0 1 1.52 1.65 1.65 0 0 0 1.82-.33l.06-.06 1.8 1.8-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.52 1H20V14h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
+  wallet: '<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 9V6a2 2 0 0 1 2-2h13M16 13h5"/>',
+  income: '<path d="M7 7l10 10M17 8v9H8"/>',
+  expense: '<path d="M7 17 17 7M8 7h9v9"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  food: '<path d="M4 3v8a3 3 0 0 0 6 0V3M7 3v18M17 21V3c-4 2-4 8 0 10h3"/>',
+  car: '<path d="M5 11l2-5h10l2 5M5 17h14l1-6H4l1 6ZM7 17v2M17 17v2M7 14h.01M17 14h.01"/>',
+  bag: '<path d="M4 8h16l-1 13H5L4 8ZM9 9V6a3 3 0 0 1 6 0v3"/>',
+  home: '<path d="m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7"/>',
+  receipt: '<path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3ZM8 8h8M8 12h8M8 16h5"/>',
+  health: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/>',
+  music: '<path d="M9 18V5l12-2v13M9 8l12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  work: '<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
+  percent: '<path d="M5 19 19 5"/><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>',
+  gift: '<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M12 9v12M3 13h18M12 9H7a3 3 0 1 1 3-3l2 3ZM12 9h5a3 3 0 1 0-3-3l-2 3Z"/>'
+};
+function icon(name) { return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">${ICON_PATHS[name] || ICON_PATHS.wallet}</svg>`; }
+function hydrateIcons() {
+  const navigation = { overview: 'grid', transactions: 'list', reports: 'chart', settings: 'settings' };
+  $$('.nav-link').forEach((a) => { a.querySelector('span').innerHTML = icon(navigation[a.dataset.view]); });
+  $$('.mobile-nav a').forEach((a) => { const label = a.querySelector('span').textContent; a.innerHTML = icon(navigation[a.dataset.view]) + `<span>${label}</span>`; });
+  $$('.add-trigger').forEach((b) => { b.innerHTML = icon('plus') + (b.classList.contains('mobile-add') ? '' : '<span>เพิ่มรายการ</span>'); });
+  $('.stat-card.balance .stat-icon').innerHTML = icon('wallet');
+  $('.stat-card .income-icon').innerHTML = icon('income');
+  $('.stat-card .expense-icon').innerHTML = icon('expense');
+}
 const LOCAL_KEY = 'daily-money-entries-v1';
 const CONFIG_KEY = 'daily-money-supabase-v1';
 let entries = readLocal();
@@ -33,7 +64,7 @@ function inRange(rows, range) { return rows.filter((e) => e.entry_date >= range[
 function sums(rows) { return rows.reduce((a, e) => { a[e.type] += Number(e.amount); a[e.type + 'Count']++; return a; }, { income: 0, expense: 0, incomeCount: 0, expenseCount: 0 }); }
 function ordered(rows) { return [...rows].sort((a, b) => b.entry_date.localeCompare(a.entry_date) || String(b.created_at || '').localeCompare(String(a.created_at || ''))); }
 function empty(label = 'ยังไม่มีรายการในช่วงนี้') { return `<div class="empty-state"><strong>${label}</strong>เพิ่มรายการแรกเพื่อเริ่มดูสรุปการเงิน</div>`; }
-function rowHtml(e, editable = false) { return `<div class="transaction-row"><div class="tx-icon ${e.type}">${safeText(ICONS[e.category] || (e.type === 'income' ? '↙' : '◈'))}</div><div class="tx-main"><div class="tx-title">${safeText(e.title)}</div><div class="tx-meta">${safeText(e.category)} · ${shortDate(e.entry_date)}</div></div><div class="tx-amount ${e.type === 'income' ? 'income-text' : 'expense-text'}">${e.type === 'income' ? '+' : '−'}${money(e.amount)}</div>${editable ? `<button class="tx-edit" data-edit="${safeText(e.id)}" aria-label="แก้ไข ${safeText(e.title)}">⋯</button>` : ''}</div>`; }
+function rowHtml(e, editable = false) { return `<div class="transaction-row"><div class="tx-icon ${e.type}">${icon(ICONS[e.category] || (e.type === 'income' ? 'income' : 'wallet'))}</div><div class="tx-main"><div class="tx-title">${safeText(e.title)}</div><div class="tx-meta">${safeText(e.category)} · ${shortDate(e.entry_date)}</div></div><div class="tx-amount ${e.type === 'income' ? 'income-text' : 'expense-text'}">${e.type === 'income' ? '+' : '−'}${money(e.amount)}</div>${editable ? `<button class="tx-edit" data-edit="${safeText(e.id)}" aria-label="แก้ไข ${safeText(e.title)}">${icon('more')}</button>` : ''}</div>`; }
 
 function renderOverview() {
   const range = activeRange(period); const rows = inRange(entries, range); const total = sums(rows);
@@ -104,6 +135,7 @@ $('#auth-form').addEventListener('submit', (event) => { event.preventDefault(); 
 $('#signup-btn').addEventListener('click', () => authSubmit(true));
 $('#signout-btn').addEventListener('click', async () => { await supabase.auth.signOut(); user = null; entries = readLocal(); render(); toast('ออกจากระบบแล้ว'); });
 $('#upload-local-btn').addEventListener('click', uploadLocal);
+hydrateIcons();
 $('#today-label').textContent = titleDate(new Date());
 const config = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); if (config) { $('#supabase-url').value = config.url; $('#supabase-key').value = config.key; connectSupabase(); }
 const initialView = location.hash.slice(1); if (['overview', 'transactions', 'reports', 'settings'].includes(initialView)) setView(initialView);
