@@ -1,16 +1,18 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const TH = 'th-TH';
-const money = (n) => '฿' + Number(n || 0).toLocaleString(TH, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const money = (n) => { const amount = Number(n || 0); return (amount < 0 ? '−' : '') + '฿' + Math.abs(amount).toLocaleString(TH, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); };
 const pad = (n) => String(n).padStart(2, '0');
 const dateKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseDate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const shortDate = (s) => new Intl.DateTimeFormat(TH, { day: 'numeric', month: 'short', year: 'numeric' }).format(parseDate(s));
+const shortDay = (s) => new Intl.DateTimeFormat(TH, { day: 'numeric', month: 'short' }).format(parseDate(s));
 const titleDate = (d) => new Intl.DateTimeFormat(TH, { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
 const monthTitle = (d) => new Intl.DateTimeFormat(TH, { month: 'long', year: 'numeric' }).format(d);
 const WEEK = (d) => addDays(d, -(d.getDay() + 6) % 7);
 const CATEGORIES = { expense: ['อาหารและเครื่องดื่ม', 'เดินทาง', 'ช้อปปิ้ง', 'ที่พักอาศัย', 'บิลและสาธารณูปโภค', 'สุขภาพ', 'ความบันเทิง', 'อื่น ๆ'], income: ['เงินเดือน', 'งานเสริม', 'ขายของ', 'ดอกเบี้ย', 'ของขวัญ', 'อื่น ๆ'] };
+const CATEGORY_SHORT = { 'อาหารและเครื่องดื่ม': 'อาหาร', 'ช้อปปิ้ง': 'ของใช้', 'ที่พักอาศัย': 'ที่พัก', 'บิลและสาธารณูปโภค': 'บิล', 'ความบันเทิง': 'บันเทิง' };
 const ICONS = { 'อาหารและเครื่องดื่ม': 'food', 'เดินทาง': 'car', 'ช้อปปิ้ง': 'bag', 'ที่พักอาศัย': 'home', 'บิลและสาธารณูปโภค': 'receipt', 'สุขภาพ': 'health', 'ความบันเทิง': 'music', 'เงินเดือน': 'wallet', 'งานเสริม': 'work', 'ขายของ': 'bag', 'ดอกเบี้ย': 'percent', 'ของขวัญ': 'gift' };
 const ICON_PATHS = {
   grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
@@ -35,13 +37,10 @@ const ICON_PATHS = {
 };
 function icon(name) { return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">${ICON_PATHS[name] || ICON_PATHS.wallet}</svg>`; }
 function hydrateIcons() {
-  const navigation = { overview: 'grid', transactions: 'list', reports: 'chart', settings: 'settings' };
+  const navigation = { overview: 'home', transactions: 'wallet', reports: 'chart', settings: 'settings' };
   $$('.nav-link').forEach((a) => { a.querySelector('span').innerHTML = icon(navigation[a.dataset.view]); });
   $$('.mobile-nav a').forEach((a) => { const label = a.querySelector('span').textContent; a.innerHTML = icon(navigation[a.dataset.view]) + `<span>${label}</span>`; });
-  $$('.add-trigger').forEach((b) => { b.innerHTML = icon('plus') + (b.classList.contains('mobile-add') ? '' : '<span>เพิ่มรายการ</span>'); });
-  $('.stat-card.balance .stat-icon').innerHTML = icon('wallet');
-  $('.stat-card .income-icon').innerHTML = icon('income');
-  $('.stat-card .expense-icon').innerHTML = icon('expense');
+  $$('.add-trigger').forEach((b) => { b.innerHTML = icon('plus') + (b.classList.contains('floating-add') ? '' : '<span>เพิ่มรายการ</span>'); });
 }
 const LOCAL_KEY = 'daily-money-entries-v1';
 const CONFIG_KEY = 'daily-money-supabase-v1';
@@ -50,7 +49,7 @@ let supabase = null;
 let user = null;
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDate = dateKey(new Date());
-let reportMode = 'week';
+let reportMode = 'month';
 let reportDate = new Date();
 let editId = null;
 let entryType = 'expense';
@@ -60,19 +59,24 @@ function readLocal() { try { const x = JSON.parse(localStorage.getItem(LOCAL_KEY
 function saveLocal() { localStorage.setItem(LOCAL_KEY, JSON.stringify(entries)); }
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 3500); }
 function safeText(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
-function activeRange(kind, anchor = new Date()) { const start = kind === 'day' ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()) : kind === 'week' ? WEEK(anchor) : new Date(anchor.getFullYear(), anchor.getMonth(), 1); const end = kind === 'day' ? start : kind === 'week' ? addDays(start, 6) : new Date(start.getFullYear(), start.getMonth() + 1, 0); return [dateKey(start), dateKey(end)]; }
+function activeRange(kind, anchor = new Date()) { const start = kind === 'day' ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()) : kind === 'week' ? WEEK(anchor) : kind === 'year' ? new Date(anchor.getFullYear(), 0, 1) : new Date(anchor.getFullYear(), anchor.getMonth(), 1); const end = kind === 'day' ? start : kind === 'week' ? addDays(start, 6) : kind === 'year' ? new Date(anchor.getFullYear(), 11, 31) : new Date(start.getFullYear(), start.getMonth() + 1, 0); return [dateKey(start), dateKey(end)]; }
 function inRange(rows, range) { return rows.filter((e) => e.entry_date >= range[0] && e.entry_date <= range[1]); }
 function sums(rows) { return rows.reduce((a, e) => { a[e.type] += Number(e.amount); a[e.type + 'Count']++; return a; }, { income: 0, expense: 0, incomeCount: 0, expenseCount: 0 }); }
 function ordered(rows) { return [...rows].sort((a, b) => b.entry_date.localeCompare(a.entry_date) || String(b.created_at || '').localeCompare(String(a.created_at || ''))); }
-function empty(label = 'ยังไม่มีรายการในช่วงนี้') { return `<div class="empty-state"><strong>${label}</strong>เพิ่มรายการแรกเพื่อเริ่มดูสรุปการเงิน</div>`; }
-function rowHtml(e, editable = false) { const detail = e.title && e.title !== e.category ? `${safeText(e.title)} · ` : ''; return `<div class="transaction-row"><div class="tx-icon ${e.type}">${icon(ICONS[e.category] || (e.type === 'income' ? 'income' : 'wallet'))}</div><div class="tx-main"><div class="tx-title">${safeText(e.category)}</div><div class="tx-meta">${detail}${e.note ? `${safeText(e.note)} · ` : ''}${shortDate(e.entry_date)}</div></div><div class="tx-amount ${e.type === 'income' ? 'income-text' : 'expense-text'}">${e.type === 'income' ? '+' : '−'}${money(e.amount)}</div>${editable ? `<button class="tx-edit" data-edit="${safeText(e.id)}" aria-label="แก้ไข ${safeText(e.category)}">${icon('more')}</button>` : ''}</div>`; }
+function empty(label = 'ยังไม่มีรายการในช่วงนี้') { return `<div class="empty-state"><strong>${label}</strong><span>กดปุ่ม + เพื่อเริ่มบันทึกรายการ</span></div>`; }
+function rowHtml(e, editable = false) { const title = e.note || (e.title && e.title !== e.category ? e.title : '') || CATEGORY_SHORT[e.category] || e.category; const meta = e.note ? `${CATEGORY_SHORT[e.category] || e.category}${e.title && e.title !== e.category ? ` · ${e.title}` : ''}` : e.category; const tag = editable ? 'button' : 'div'; return `<${tag} ${editable ? `type="button" data-edit="${safeText(e.id)}"` : ''} class="transaction-row"><span class="tx-icon ${e.type}">${icon(ICONS[e.category] || (e.type === 'income' ? 'income' : 'wallet'))}</span><span class="tx-main"><span class="tx-title">${safeText(title)}</span><span class="tx-meta">${safeText(meta)}</span></span><span class="tx-amount ${e.type === 'income' ? 'income-text' : 'expense-text'}">${e.type === 'income' ? '+' : '−'}${money(e.amount)}</span></${tag}>`; }
+function dayGroupLabel(key) { const today = dateKey(new Date()); const yesterday = dateKey(addDays(new Date(), -1)); return `${key === today ? 'วันนี้' : key === yesterday ? 'เมื่อวาน' : 'วันที่'} · ${shortDate(key)}`; }
 
 function renderOverview() {
   const range = activeRange('month', calendarMonth); const rows = inRange(entries, range); const total = sums(rows);
   $('#overview-range').textContent = monthTitle(calendarMonth);
+  $('#home-month-label').textContent = new Intl.DateTimeFormat(TH, { month: 'short', year: 'numeric' }).format(calendarMonth);
+  $('#home-month').value = `${calendarMonth.getFullYear()}-${pad(calendarMonth.getMonth() + 1)}`;
   $('#balance-total').textContent = money(total.income - total.expense);
   $('#income-total').textContent = money(total.income); $('#expense-total').textContent = money(total.expense);
   $('#income-count').textContent = `${total.incomeCount} รายการ`; $('#expense-count').textContent = `${total.expenseCount} รายการ`;
+  const recent = ordered(rows).slice(0, 8); let lastDate = '';
+  $('#recent-list').innerHTML = recent.length ? recent.map((e) => { const header = e.entry_date !== lastDate ? `<h3 class="date-group">${dayGroupLabel(e.entry_date)}</h3>` : ''; lastDate = e.entry_date; return header + rowHtml(e, true); }).join('') : empty('ยังไม่มีรายการในเดือนนี้');
   $('#calendar-month').textContent = monthTitle(calendarMonth);
   const first = parseDate(range[0]); const days = parseDate(range[1]).getDate(); const offset = (first.getDay() + 6) % 7;
   const byDay = new Map(); for (const e of rows) { const day = byDay.get(e.entry_date) || { income: 0, expense: 0 }; day[e.type] += Number(e.amount); byDay.set(e.entry_date, day); }
@@ -94,19 +98,28 @@ function renderTransactions() {
 }
 function renderReports() {
   const range = activeRange(reportMode, reportDate); const rows = inRange(entries, range); const total = sums(rows);
-  $('#report-range').textContent = reportMode === 'week' ? `${shortDate(range[0])} – ${shortDate(range[1])}` : monthTitle(reportDate);
+  $('#report-range').textContent = reportMode === 'week' ? `${shortDay(range[0])} – ${shortDay(range[1])}` : reportMode === 'year' ? String(reportDate.getFullYear() + 543) : new Intl.DateTimeFormat(TH, { month: 'short', year: 'numeric' }).format(reportDate);
   $('#report-income').textContent = money(total.income); $('#report-expense').textContent = money(total.expense); $('#report-balance').textContent = money(total.income - total.expense);
-  $('#report-count').textContent = `${rows.length} รายการ`; $('#report-list').innerHTML = rows.length ? ordered(rows).slice(0, 8).map((e) => rowHtml(e)).join('') : empty();
+  $('#report-count').textContent = `${rows.length} รายการ`; $('#report-list').innerHTML = rows.length ? ordered(rows).slice(0, 5).map((e) => rowHtml(e)).join('') : empty();
   const byCategory = {}; for (const e of rows.filter((x) => x.type === 'expense')) byCategory[e.category] = (byCategory[e.category] || 0) + Number(e.amount);
   const cats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
-  $('#category-report').innerHTML = cats.length ? cats.map(([name, value]) => `<div class="cat-row"><div class="cat-top"><span>${safeText(name)}</span><strong>${money(value)}</strong></div><div class="cat-track"><div class="cat-fill" style="width:${value / total.expense * 100}%"></div></div></div>`).join('') : empty('ยังไม่มีรายจ่าย');
+  const colors = ['#0e806a', '#e58d3c', '#3e6fb2', '#9465b7', '#8d9994', '#d1aa40', '#63a5a0', '#b56b72'];
+  let cursor = 0;
+  const segments = cats.map(([, value], index) => { const end = cursor + value / total.expense * 100; const segment = `${colors[index % colors.length]} ${cursor}% ${end}%`; cursor = end; return segment; });
+  $('#donut-chart').style.background = cats.length ? `conic-gradient(${segments.join(', ')})` : '#dfe7e3';
+  $('#category-report').innerHTML = cats.length ? cats.map(([name, value], index) => `<div class="cat-row"><span class="cat-color" style="background:${colors[index % colors.length]}"></span><span class="cat-name">${safeText(CATEGORY_SHORT[name] || name)}</span><span class="cat-percent">${Math.round(value / total.expense * 100)}%</span><strong>${money(value)}</strong></div>`).join('') : empty('ยังไม่มีรายจ่าย');
+  const lastWeek = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i - 6));
+  const daily = lastWeek.map((day) => entries.filter((e) => e.type === 'expense' && e.entry_date === dateKey(day)).reduce((sum, e) => sum + Number(e.amount), 0));
+  const peak = Math.max(1, ...daily);
+  $('#week-bars').innerHTML = lastWeek.map((day, i) => `<div class="week-bar" title="${shortDate(dateKey(day))}: ${money(daily[i])}"><div class="bar-track"><span class="${i === 6 ? 'current' : ''}" style="height:${daily[i] ? Math.max(9, daily[i] / peak * 100) : 4}%"></span></div><small>${i === 6 ? 'วันนี้' : new Intl.DateTimeFormat(TH, { weekday: 'short' }).format(day)}</small></div>`).join('');
 }
 function render() { renderOverview(); renderTransactions(); renderReports(); updateStorageLabel(); }
-function setView(view) { $$('.view').forEach((x) => x.classList.toggle('active-view', x.id === view)); $$('[data-view]').forEach((x) => x.classList.toggle('active', x.dataset.view === view)); window.scrollTo(0, 0); }
-function updateStorageLabel() { $('#storage-label').textContent = user ? `ซิงก์กับ ${user.email}` : 'บันทึกในเครื่องนี้'; $('#mode-description').textContent = user ? `ข้อมูลกำลังซิงก์กับ Supabase สำหรับ ${user.email}` : 'ตอนนี้ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้'; $('#auth-status').textContent = user ? `เข้าสู่ระบบ: ${user.email}` : 'ยังไม่ได้เข้าสู่ระบบ'; $('#signout-btn').hidden = !user; $('#upload-local-btn').hidden = !user || !readLocal().length; }
-function fillCategories(value = '') { const select = $('#entry-category'); select.innerHTML = CATEGORIES[entryType].map((x) => `<option value="${safeText(x)}">${safeText(x)}</option>`).join(''); if (value && CATEGORIES[entryType].includes(value)) select.value = value; }
-function setEntryType(type, category = '') { entryType = type; $$('[data-entry-type]').forEach((x) => x.classList.toggle('active', x.dataset.entryType === type)); fillCategories(category); }
-function openEntry(e = null, date = null) { editId = e?.id || null; deleteArmed = false; $('#delete-entry').textContent = 'ลบรายการ'; $('#entry-form').reset(); $('#dialog-title').textContent = e ? 'แก้ไขรายการ' : 'เพิ่มรายการ'; $('#delete-entry').hidden = !e; setEntryType(e?.type || 'expense', e?.category); $('#entry-date').value = e?.entry_date || date || dateKey(new Date()); if (e) { $('#entry-amount').value = e.amount; $('#entry-note').value = e.note || ''; } $('#entry-dialog').showModal(); }
+function setView(view) { $$('.view').forEach((x) => x.classList.toggle('active-view', x.id === view)); $$('[data-view]').forEach((x) => x.classList.toggle('active', x.dataset.view === view)); document.body.dataset.view = view; window.scrollTo(0, 0); }
+function updateStorageLabel() { $('#storage-label').textContent = user ? `ซิงก์กับ ${user.email}` : 'บันทึกในเครื่องนี้'; $('#mode-description').textContent = user ? `ข้อมูลซิงก์กับ Supabase สำหรับ ${user.email}` : 'ตอนนี้ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้'; $('#storage-notice').textContent = user ? 'ข้อมูลบัญชีนี้ซิงก์ข้ามอุปกรณ์แล้ว คุณสามารถส่งออก CSV เพื่อเก็บสำรองเพิ่มเติมได้' : 'ข้อมูลในเครื่องอยู่เฉพาะเบราว์เซอร์นี้ กรุณาส่งออกไฟล์สำรองเป็นระยะ'; $('#auth-status').textContent = user ? `เข้าสู่ระบบ: ${user.email}` : 'ยังไม่ได้เข้าสู่ระบบ'; $('#signout-btn').hidden = !user; $('#upload-local-btn').hidden = !user || !readLocal().length; }
+function fillCategories(value = '') { const select = $('#entry-category'); select.innerHTML = CATEGORIES[entryType].map((x) => `<option value="${safeText(x)}">${safeText(x)}</option>`).join(''); select.value = value && CATEGORIES[entryType].includes(value) ? value : CATEGORIES[entryType][0]; $('#category-chips').innerHTML = CATEGORIES[entryType].map((name) => `<button type="button" data-category="${safeText(name)}" aria-pressed="${name === select.value}">${safeText(CATEGORY_SHORT[name] || name)}</button>`).join(''); }
+function setEntryType(type, category = '') { entryType = type; $$('[data-entry-type]').forEach((x) => { x.classList.toggle('active', x.dataset.entryType === type); x.setAttribute('aria-pressed', String(x.dataset.entryType === type)); }); $('#entry-dialog').dataset.type = type; fillCategories(category); }
+function updateEntryDateLabel() { const value = $('#entry-date').value; $('#entry-date-label').textContent = value === dateKey(new Date()) ? `วันนี้ · ${shortDay(value)}` : shortDate(value); }
+function openEntry(e = null, date = null) { editId = e?.id || null; deleteArmed = false; $('#delete-entry').textContent = 'ลบรายการ'; $('#entry-form').reset(); $('#dialog-title').textContent = e ? 'แก้ไขรายการ' : 'เพิ่มรายการ'; $('#delete-entry').hidden = !e; setEntryType(e?.type || 'expense', e?.category); $('#entry-date').value = e?.entry_date || date || dateKey(new Date()); updateEntryDateLabel(); if (e) { $('#entry-amount').value = e.amount; $('#entry-note').value = e.note || ''; } $('#entry-dialog').showModal(); }
 
 async function loadRemote() { if (!supabase || !user) return; const { data, error } = await supabase.from('transactions').select('id,type,amount,title,category,entry_date,note,created_at').order('entry_date', { ascending: false }).limit(5000); if (error) { toast(`โหลดข้อมูลไม่สำเร็จ: ${error.message}`); return; } entries = data || []; render(); }
 async function saveEntry(e) { if (user) { const payload = { type: e.type, amount: e.amount, title: e.title, category: e.category, entry_date: e.entry_date, note: e.note, user_id: user.id }; const result = editId ? await supabase.from('transactions').update(payload).eq('id', editId) : await supabase.from('transactions').insert(payload); if (result.error) throw result.error; await loadRemote(); } else { if (editId) entries = entries.map((old) => old.id === editId ? { ...old, ...e } : old); else entries.push({ ...e, id: crypto.randomUUID(), created_at: new Date().toISOString() }); saveLocal(); render(); } }
@@ -123,6 +136,8 @@ async function importCsv(file) { if (user) return toast('กรุณาออ�
 
 $$('[data-view]').forEach((a) => a.addEventListener('click', () => setView(a.dataset.view)));
 $$('.add-trigger').forEach((b) => b.addEventListener('click', () => openEntry()));
+$('#home-month').addEventListener('change', (event) => { if (!event.target.value) return; const [year, month] = event.target.value.split('-').map(Number); calendarMonth = new Date(year, month - 1, 1); selectedDate = dateKey(new Date(year, month - 1, Math.min(parseDate(selectedDate).getDate(), new Date(year, month, 0).getDate()))); renderOverview(); });
+$('#recent-list').addEventListener('click', (event) => { const id = event.target.closest('[data-edit]')?.dataset.edit; if (id) openEntry(entries.find((e) => e.id === id)); });
 $('#calendar-grid').addEventListener('click', (event) => { const date = event.target.closest('[data-calendar-date]')?.dataset.calendarDate; if (date) { selectedDate = date; renderOverview(); } });
 function moveCalendarMonth(offset) { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + offset, 1); selectedDate = dateKey(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), Math.min(parseDate(selectedDate).getDate(), new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate()))); renderOverview(); }
 $('#calendar-prev').addEventListener('click', () => moveCalendarMonth(-1));
@@ -130,13 +145,17 @@ $('#calendar-next').addEventListener('click', () => moveCalendarMonth(1));
 $('#calendar-today').addEventListener('click', () => { calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1); selectedDate = dateKey(new Date()); renderOverview(); });
 $('#calendar-add').addEventListener('click', () => openEntry(null, selectedDate));
 $$('[data-report]').forEach((b) => b.addEventListener('click', () => { reportMode = b.dataset.report; reportDate = new Date(); $$('[data-report]').forEach((x) => x.classList.toggle('active', x === b)); renderReports(); }));
-$('#report-prev').addEventListener('click', () => { reportDate = reportMode === 'week' ? addDays(reportDate, -7) : new Date(reportDate.getFullYear(), reportDate.getMonth() - 1, 1); renderReports(); });
-$('#report-next').addEventListener('click', () => { reportDate = reportMode === 'week' ? addDays(reportDate, 7) : new Date(reportDate.getFullYear(), reportDate.getMonth() + 1, 1); renderReports(); });
+$('#report-prev').addEventListener('click', () => { reportDate = reportMode === 'week' ? addDays(reportDate, -7) : reportMode === 'year' ? new Date(reportDate.getFullYear() - 1, 0, 1) : new Date(reportDate.getFullYear(), reportDate.getMonth() - 1, 1); renderReports(); });
+$('#report-next').addEventListener('click', () => { reportDate = reportMode === 'week' ? addDays(reportDate, 7) : reportMode === 'year' ? new Date(reportDate.getFullYear() + 1, 0, 1) : new Date(reportDate.getFullYear(), reportDate.getMonth() + 1, 1); renderReports(); });
 ['search-input', 'type-filter', 'date-filter'].forEach((id) => $('#' + id).addEventListener('input', renderTransactions));
 $('#clear-filters').addEventListener('click', () => { $('#search-input').value = ''; $('#type-filter').value = 'all'; $('#date-filter').value = ''; renderTransactions(); });
 $('#all-list').addEventListener('click', (event) => { const id = event.target.closest('[data-edit]')?.dataset.edit; if (id) openEntry(entries.find((e) => e.id === id)); });
 $('#close-dialog').addEventListener('click', () => $('#entry-dialog').close());
 $$('[data-entry-type]').forEach((b) => b.addEventListener('click', () => setEntryType(b.dataset.entryType)));
+$('#category-chips').addEventListener('click', (event) => { const category = event.target.closest('[data-category]')?.dataset.category; if (!category) return; $('#entry-category').value = category; $$('#category-chips button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.category === category))); });
+$('#entry-date').addEventListener('change', updateEntryDateLabel);
+$('#amount-keypad').addEventListener('click', (event) => { const key = event.target.closest('[data-key]')?.dataset.key; if (!key) return; const input = $('#entry-amount'); let value = input.value; if (key === 'back') value = value.slice(0, -1); else if (key === '.') { if (!value.includes('.')) value = (value || '0') + '.'; } else if (value.length < 12 && (!value.includes('.') || value.split('.')[1].length < 2)) value = value === '0' ? key : value + key; input.value = value; });
+$('#entry-amount').addEventListener('input', (event) => { let value = event.target.value.replace(/[^0-9.]/g, ''); const dot = value.indexOf('.'); if (dot >= 0) value = value.slice(0, dot + 1) + value.slice(dot + 1).replace(/\./g, '').slice(0, 2); event.target.value = value.slice(0, 12); });
 $('#entry-form').addEventListener('submit', async (event) => { event.preventDefault(); const category = $('#entry-category').value; const previous = entries.find((x) => x.id === editId); const title = previous?.title && previous.title !== previous.category ? previous.title : category; const e = { type: entryType, amount: Number($('#entry-amount').value), title, category, entry_date: $('#entry-date').value, note: $('#entry-note').value.trim() }; if (!e.amount || e.amount <= 0 || !e.category || !e.entry_date) return toast('กรุณากรอกข้อมูลให้ครบ'); try { await saveEntry(e); $('#entry-dialog').close(); toast('บันทึกรายการแล้ว'); } catch (error) { toast(`บันทึกไม่สำเร็จ: ${error.message}`); } });
 $('#delete-entry').addEventListener('click', deleteEntry);
 $('#export-btn').addEventListener('click', exportCsv);
@@ -149,6 +168,6 @@ $('#upload-local-btn').addEventListener('click', uploadLocal);
 hydrateIcons();
 $('#today-label').textContent = titleDate(new Date());
 const config = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); if (config) { $('#supabase-url').value = config.url; $('#supabase-key').value = config.key; connectSupabase(); }
-const initialView = location.hash.slice(1); if (['overview', 'transactions', 'reports', 'settings'].includes(initialView)) setView(initialView);
+const initialView = location.hash.slice(1); setView(['overview', 'transactions', 'reports', 'settings'].includes(initialView) ? initialView : 'overview');
 window.addEventListener('hashchange', () => { const view = location.hash.slice(1); if (['overview', 'transactions', 'reports', 'settings'].includes(view)) setView(view); });
 render();

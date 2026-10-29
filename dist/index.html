@@ -3,46 +3,112 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f4f8fc">
-  <meta name="description" content="บันทึกรายรับรายจ่ายรายวัน พร้อมสรุปรายสัปดาห์และรายเดือน">
-  <title>สมุดเงินรายวัน</title>
+  <meta name="theme-color" content="#f5f7f6">
+  <meta name="description" content="สมุดเงิน บันทึกรายรับรายจ่ายและดูสถิติรายสัปดาห์ รายเดือน">
+  <title>สมุดเงิน</title>
   <link rel="stylesheet" href="styles-v2.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="#overview" aria-label="สมุดเงินรายวัน">
-        <span class="brand-mark">฿</span><span>สมุดเงิน<span class="brand-sub">รายวัน</span></span>
-      </a>
+      <a class="brand" href="#overview" aria-label="สมุดเงิน หน้าหลัก"><span class="brand-mark">฿</span><span>สมุดเงิน<small>รายรับรายจ่ายของคุณ</small></span></a>
       <nav class="side-nav" aria-label="เมนูหลัก">
-        <a class="nav-link active" href="#overview" data-view="overview"><span>◫</span> ภาพรวม</a>
-        <a class="nav-link" href="#transactions" data-view="transactions"><span>☷</span> รายการทั้งหมด</a>
-        <a class="nav-link" href="#reports" data-view="reports"><span>▥</span> สรุปยอด</a>
-        <a class="nav-link" href="#settings" data-view="settings"><span>⚙</span> ตั้งค่าและซิงก์</a>
+        <a class="nav-link active" href="#overview" data-view="overview"><span></span>หน้าหลัก</a>
+        <a class="nav-link" href="#reports" data-view="reports"><span></span>สถิติ</a>
+        <a class="nav-link" href="#transactions" data-view="transactions"><span></span>รายการ</a>
+        <a class="nav-link" href="#settings" data-view="settings"><span></span>ตั้งค่า</a>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot"></span><span id="storage-label">บันทึกในเครื่องนี้</span></div>
     </aside>
-
     <main class="main-content">
-      <header class="topbar"><div class="mobile-brand">฿ <strong>สมุดเงินรายวัน</strong></div><div id="today-label"></div></header>
+      <header class="topbar"><span>สมุดเงิน</span><span id="today-label"></span></header>
 
       <section id="overview" class="view active-view">
-        <div class="page-heading"><div><h1>ภาพรวมการเงิน</h1><p class="muted">ดูรายรับรายจ่ายของแต่ละวันในปฏิทิน</p></div><button class="primary-btn add-trigger" type="button">＋ เพิ่มรายการ</button></div>
-        <div class="calendar-layout"><section class="panel calendar-panel" aria-label="ปฏิทินรายรับรายจ่าย"><div class="calendar-heading"><div><h2>ปฏิทินการเงิน</h2><p class="muted small">เลือกวันที่เพื่อดูรายการ</p></div><div class="calendar-controls"><button id="calendar-prev" class="icon-btn" type="button" aria-label="เดือนก่อนหน้า">‹</button><strong id="calendar-month"></strong><button id="calendar-next" class="icon-btn" type="button" aria-label="เดือนถัดไป">›</button><button id="calendar-today" class="secondary-btn" type="button">วันนี้</button></div></div><div class="calendar-weekdays" aria-hidden="true"><span>จ.</span><span>อ.</span><span>พ.</span><span>พฤ.</span><span>ศ.</span><span>ส.</span><span>อา.</span></div><div id="calendar-grid" class="calendar-grid" role="group" aria-label="ปฏิทินรายเดือน"></div><div class="calendar-legend"><span><i class="legend-income"></i> รายรับ</span><span><i class="legend-expense"></i> รายจ่าย</span></div></section><section class="panel day-panel"><div class="day-panel-head"><div><p class="day-overline">รายการประจำวัน</p><h2 id="selected-day-title"></h2><p id="selected-day-count" class="muted small"></p></div><button id="calendar-add" class="day-add-btn" type="button" aria-label="เพิ่มรายการในวันที่เลือก">＋</button></div><div class="day-totals"><div><span>รายรับ</span><strong id="selected-day-income" class="income-text">฿0</strong></div><div><span>รายจ่าย</span><strong id="selected-day-expense" class="expense-text">฿0</strong></div></div><div id="selected-day-list" class="transaction-list"></div></section></div>
-        <div class="stats-grid overview-stats"><article class="stat-card balance"><div class="stat-icon">◈</div><div class="stat-label">คงเหลือเดือนนี้</div><div class="stat-value" id="balance-total">฿0</div><div class="stat-foot" id="overview-range">สรุปรายเดือน</div></article><article class="stat-card"><div class="stat-icon income-icon">↙</div><div class="stat-label">รายรับเดือนนี้</div><div class="stat-value income-text" id="income-total">฿0</div><div class="stat-foot" id="income-count">0 รายการ</div></article><article class="stat-card"><div class="stat-icon expense-icon">↗</div><div class="stat-label">รายจ่ายเดือนนี้</div><div class="stat-value expense-text" id="expense-total">฿0</div><div class="stat-foot" id="expense-count">0 รายการ</div></article></div>
+        <div class="home-head"><h1>สมุดเงิน</h1><label class="month-picker"><span id="home-month-label"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><input id="home-month" type="month" aria-label="เลือกเดือนในหน้าหลัก"></label></div>
+        <div class="home-columns">
+          <div class="home-primary">
+            <section class="balance-card" aria-label="สรุปยอดเงินเดือนนี้">
+              <p>ยอดคงเหลือเดือนนี้</p>
+              <strong id="balance-total">฿0</strong>
+              <span id="overview-range" class="sr-only"></span>
+              <div class="balance-split">
+                <div><span>รายรับ</span><strong id="income-total">฿0</strong><small id="income-count">0 รายการ</small></div>
+                <div><span>รายจ่าย</span><strong id="expense-total">฿0</strong><small id="expense-count">0 รายการ</small></div>
+              </div>
+            </section>
+            <section class="recent-section" aria-labelledby="recent-title">
+              <div class="section-head"><h2 id="recent-title">รายการล่าสุด</h2><a href="#transactions" data-view="transactions" class="section-link">ดูทั้งหมด</a></div>
+              <div id="recent-list" class="transaction-list"></div>
+            </section>
+          </div>
+          <div class="home-secondary">
+            <section class="calendar-section" aria-labelledby="calendar-heading">
+              <div class="section-head"><h2 id="calendar-heading">ปฏิทินรายวัน</h2><span class="section-hint">แตะวันที่เพื่อดูรายการ</span></div>
+              <div class="calendar-panel">
+                <div class="calendar-controls"><button id="calendar-prev" class="icon-btn" type="button" aria-label="เดือนก่อนหน้า">‹</button><strong id="calendar-month"></strong><button id="calendar-next" class="icon-btn" type="button" aria-label="เดือนถัดไป">›</button><button id="calendar-today" class="text-btn" type="button">วันนี้</button></div>
+                <div class="calendar-weekdays" aria-hidden="true"><span>จ.</span><span>อ.</span><span>พ.</span><span>พฤ.</span><span>ศ.</span><span>ส.</span><span>อา.</span></div>
+                <div id="calendar-grid" class="calendar-grid" role="group" aria-label="ปฏิทินรายเดือน"></div>
+                <div class="calendar-legend"><span><i class="legend-income"></i> รายรับ</span><span><i class="legend-expense"></i> รายจ่าย</span></div>
+              </div>
+              <div class="day-panel">
+                <div class="day-panel-head"><div><h3 id="selected-day-title"></h3><p id="selected-day-count"></p></div><button id="calendar-add" class="icon-btn" type="button" aria-label="เพิ่มรายการในวันที่เลือก">＋</button></div>
+                <div class="day-totals"><span>รายรับ <strong id="selected-day-income">฿0</strong></span><span>รายจ่าย <strong id="selected-day-expense">฿0</strong></span></div>
+                <div id="selected-day-list" class="transaction-list"></div>
+              </div>
+            </section>
+          </div>
+        </div>
       </section>
 
-      <section id="transactions" class="view"><div class="page-heading"><div><p class="eyebrow">TRANSACTIONS</p><h1>รายการทั้งหมด</h1><p class="muted">ค้นหาและแก้ไขรายการรายรับรายจ่าย</p></div><button class="primary-btn add-trigger" type="button">＋ เพิ่มรายการ</button></div><div class="panel"><div class="filter-row"><label class="search-wrap"><span>⌕</span><input id="search-input" type="search" placeholder="ค้นหาหมวดหมู่หรือหมายเหตุ" aria-label="ค้นหารายการ"></label><select id="type-filter" aria-label="กรองประเภทรายการ"><option value="all">ทุกประเภท</option><option value="income">รายรับ</option><option value="expense">รายจ่าย</option></select><input id="date-filter" type="month" aria-label="กรองเดือน"><button id="clear-filters" class="ghost-btn" type="button">ล้างตัวกรอง</button></div><div id="all-list" class="transaction-list full-list"></div></div></section>
+      <section id="reports" class="view">
+        <div class="page-heading"><h1>สถิติ</h1><div class="report-nav"><button id="report-prev" class="icon-btn" type="button" aria-label="ช่วงเวลาก่อนหน้า">‹</button><strong id="report-range"></strong><button id="report-next" class="icon-btn" type="button" aria-label="ช่วงเวลาถัดไป">›</button></div></div>
+        <div class="segmented report-segmented" role="group" aria-label="รูปแบบสรุป"><button type="button" data-report="week">สัปดาห์</button><button type="button" class="active" data-report="month">เดือน</button><button type="button" data-report="year">ปี</button></div>
+        <div class="report-layout">
+          <section class="category-section" aria-label="สัดส่วนรายจ่าย">
+            <div id="donut-chart" class="donut-chart"><div class="donut-center"><span>รายจ่ายรวม</span><strong id="report-expense">฿0</strong></div></div>
+            <div id="category-report" class="category-report"></div>
+          </section>
+          <div class="report-aside">
+            <section class="week-chart-card"><h2>7 วันล่าสุด</h2><div id="week-bars" class="week-bars"></div></section>
+            <section class="report-summary" aria-label="ยอดรวมในช่วงนี้"><div><span>รายรับรวม</span><strong id="report-income" class="income-text">฿0</strong></div><div><span>คงเหลือ</span><strong id="report-balance">฿0</strong></div></section>
+            <section class="period-list"><div class="section-head"><h2>รายการในช่วงนี้</h2><span id="report-count" class="section-hint">0 รายการ</span></div><div id="report-list" class="transaction-list"></div></section>
+          </div>
+        </div>
+      </section>
 
-      <section id="reports" class="view"><div class="page-heading"><div><p class="eyebrow">REPORTS</p><h1>สรุปยอด</h1><p class="muted">ติดตามภาพรวมรายสัปดาห์และรายเดือน</p></div></div><div class="report-controls"><div class="segmented" role="group" aria-label="รูปแบบสรุป"><button type="button" class="active" data-report="week">รายสัปดาห์</button><button type="button" data-report="month">รายเดือน</button></div><div class="report-nav"><button id="report-prev" class="icon-btn" type="button" aria-label="ช่วงเวลาก่อนหน้า">‹</button><strong id="report-range"></strong><button id="report-next" class="icon-btn" type="button" aria-label="ช่วงเวลาถัดไป">›</button></div></div><div class="stats-grid report-stats"><article class="stat-card"><div class="stat-label">รายรับรวม</div><div id="report-income" class="stat-value income-text">฿0</div></article><article class="stat-card"><div class="stat-label">รายจ่ายรวม</div><div id="report-expense" class="stat-value expense-text">฿0</div></article><article class="stat-card balance"><div class="stat-label">เงินคงเหลือ</div><div id="report-balance" class="stat-value">฿0</div></article></div><div class="content-grid"><section class="panel"><div class="panel-head"><div><h2>รายจ่ายตามหมวดหมู่</h2><p class="muted small">หมวดที่ใช้เงินมากที่สุด</p></div></div><div id="category-report" class="category-report"></div></section><section class="panel"><div class="panel-head"><div><h2>รายการในช่วงนี้</h2><p class="muted small" id="report-count">0 รายการ</p></div></div><div id="report-list" class="transaction-list"></div></section></div></section>
+      <section id="transactions" class="view">
+        <div class="page-heading"><h1>รายการทั้งหมด</h1><button class="primary-btn add-trigger" type="button">เพิ่มรายการ</button></div>
+        <div class="filter-row"><label class="search-wrap"><span class="search-icon">⌕</span><input id="search-input" type="search" placeholder="ค้นหารายการ" aria-label="ค้นหารายการ"></label><select id="type-filter" aria-label="กรองประเภทรายการ"><option value="all">ทั้งหมด</option><option value="income">รายรับ</option><option value="expense">รายจ่าย</option></select><input id="date-filter" type="month" aria-label="กรองเดือน"><button id="clear-filters" class="text-btn" type="button">ล้าง</button></div>
+        <div id="all-list" class="transaction-list full-list"></div>
+      </section>
 
-      <section id="settings" class="view"><div class="page-heading"><div><p class="eyebrow">SETTINGS</p><h1>ตั้งค่าและซิงก์</h1><p class="muted">เชื่อม Supabase เพื่อเข้าถึงข้อมูลจากหลายอุปกรณ์</p></div></div><div class="settings-grid"><div class="panel"><h2>การจัดเก็บข้อมูล</h2><p class="muted settings-copy" id="mode-description">ตอนนี้ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้</p><div class="notice">ข้อมูลที่บันทึกในเครื่องจะอยู่เฉพาะเบราว์เซอร์นี้ กรุณาส่งออกไฟล์สำรองเป็นระยะ</div><div class="settings-actions"><button id="export-btn" class="secondary-btn" type="button">ส่งออก CSV</button><label class="secondary-btn import-label">นำเข้า CSV<input id="import-input" type="file" accept=".csv,text/csv" hidden></label></div></div><div class="panel"><h2>เชื่อมต่อ Supabase</h2><p class="muted settings-copy">กรอก Project URL และ publishable key จากโปรเจกต์ของคุณ แล้วเข้าสู่ระบบด้วยอีเมล</p><form id="config-form" class="settings-form"><label>Project URL<input id="supabase-url" type="url" placeholder="https://xxxxx.supabase.co" required></label><label>Publishable key<input id="supabase-key" type="text" placeholder="sb_publishable_..." required></label><button class="primary-btn" type="submit">บันทึกการเชื่อมต่อ</button></form><div id="auth-area" class="auth-area" hidden><p id="auth-status" class="muted"></p><form id="auth-form" class="settings-form"><label>อีเมล<input id="auth-email" type="email" autocomplete="email" required></label><label>รหัสผ่าน<input id="auth-password" type="password" autocomplete="current-password" minlength="6" required></label><div class="settings-actions"><button class="primary-btn" type="submit" value="sign-in">เข้าสู่ระบบ</button><button id="signup-btn" class="secondary-btn" type="button">สมัครบัญชี</button><button id="signout-btn" class="ghost-btn" type="button" hidden>ออกจากระบบ</button></div></form><button id="upload-local-btn" class="text-link upload-btn" type="button" hidden>คัดลอกรายการในเครื่องขึ้น Supabase</button></div><p class="help-text">ก่อนเชื่อมต่อ ให้รันไฟล์ <code>supabase/schema.sql</code> ใน SQL Editor ของ Supabase</p></div></div></section>
+      <section id="settings" class="view">
+        <div class="page-heading"><h1>ตั้งค่าและซิงก์</h1></div>
+        <div class="settings-grid">
+          <section class="settings-card"><h2>การจัดเก็บข้อมูล</h2><p id="mode-description">ตอนนี้ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้</p><div id="storage-notice" class="notice">ข้อมูลในเครื่องอยู่เฉพาะเบราว์เซอร์นี้ กรุณาส่งออกไฟล์สำรองเป็นระยะ</div><div class="settings-actions"><button id="export-btn" class="secondary-btn" type="button">ส่งออก CSV</button><label class="secondary-btn import-label">นำเข้า CSV<input id="import-input" type="file" accept=".csv,text/csv" hidden></label></div></section>
+          <section class="settings-card"><h2>เชื่อมต่อ Supabase</h2><p>กรอก Project URL และ publishable key แล้วเข้าสู่ระบบเพื่อซิงก์ข้อมูล</p><form id="config-form" class="settings-form"><label>Project URL<input id="supabase-url" type="url" placeholder="https://xxxxx.supabase.co" required></label><label>Publishable key<input id="supabase-key" type="text" placeholder="sb_publishable_..." required></label><button class="primary-btn" type="submit">บันทึกการเชื่อมต่อ</button></form><div id="auth-area" class="auth-area" hidden><p id="auth-status"></p><form id="auth-form" class="settings-form"><label>อีเมล<input id="auth-email" type="email" autocomplete="email" required></label><label>รหัสผ่าน<input id="auth-password" type="password" autocomplete="current-password" minlength="6" required></label><div class="settings-actions"><button class="primary-btn" type="submit">เข้าสู่ระบบ</button><button id="signup-btn" class="secondary-btn" type="button">สมัครบัญชี</button><button id="signout-btn" class="text-btn" type="button" hidden>ออกจากระบบ</button></div></form><button id="upload-local-btn" class="text-btn upload-btn" type="button" hidden>คัดลอกรายการในเครื่องขึ้น Supabase</button></div><p class="help-text">ก่อนเชื่อมต่อ ให้รันไฟล์ supabase/schema.sql ใน SQL Editor ของ Supabase</p></section>
+        </div>
+      </section>
     </main>
   </div>
 
-  <nav class="mobile-nav" aria-label="เมนูหลักบนมือถือ"><a href="#overview" data-view="overview" class="active">◫<span>ภาพรวม</span></a><a href="#transactions" data-view="transactions">☷<span>รายการ</span></a><button class="mobile-add add-trigger" type="button" aria-label="เพิ่มรายการ">＋</button><a href="#reports" data-view="reports">▥<span>สรุปยอด</span></a><a href="#settings" data-view="settings">⚙<span>ตั้งค่า</span></a></nav>
+  <button class="floating-add add-trigger" type="button" aria-label="เพิ่มรายการ"><span aria-hidden="true">＋</span></button>
+  <nav class="mobile-nav" aria-label="เมนูหลักบนมือถือ"><a href="#overview" data-view="overview" class="active"><span>หน้าหลัก</span></a><a href="#reports" data-view="reports"><span>สถิติ</span></a><a href="#transactions" data-view="transactions"><span>รายการ</span></a><a href="#settings" data-view="settings"><span>ตั้งค่า</span></a></nav>
 
-  <dialog id="entry-dialog" class="entry-dialog"><form id="entry-form" method="dialog"><div class="dialog-head"><div><p class="eyebrow">NEW ENTRY</p><h2 id="dialog-title">เพิ่มรายการ</h2></div><button id="close-dialog" type="button" class="close-btn" aria-label="ปิด">×</button></div><div class="entry-type" role="group" aria-label="ประเภทรายการ"><button type="button" class="active expense-type" data-entry-type="expense">− รายจ่าย</button><button type="button" data-entry-type="income">＋ รายรับ</button></div><label>จำนวนเงิน (บาท)<input id="entry-amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required></label><div class="form-two"><label>หมวดหมู่<select id="entry-category" required></select></label><label>วันที่<input id="entry-date" type="date" required></label></div><label>หมายเหตุ (ไม่บังคับ)<textarea id="entry-note" maxlength="300" rows="2" placeholder="เช่น อาหารกลางวัน"></textarea></label><div class="dialog-actions"><button id="delete-entry" type="button" class="danger-btn" hidden>ลบรายการ</button><button class="primary-btn" type="submit">บันทึกรายการ</button></div></form></dialog>
+  <dialog id="entry-dialog" class="entry-dialog">
+    <form id="entry-form" method="dialog">
+      <div class="dialog-head"><button id="close-dialog" type="button" class="close-btn" aria-label="ปิดหน้าบันทึก">‹</button><h2 id="dialog-title">เพิ่มรายการ</h2><span aria-hidden="true"></span></div>
+      <div class="entry-type" role="group" aria-label="ประเภทรายการ"><button type="button" class="active" data-entry-type="expense">รายจ่าย</button><button type="button" data-entry-type="income">รายรับ</button></div>
+      <label class="amount-label" for="entry-amount">จำนวนเงิน</label>
+      <div class="amount-field"><span>฿</span><input id="entry-amount" type="text" inputmode="none" autocomplete="off" placeholder="0" maxlength="13" required aria-label="จำนวนเงิน บาท"></div>
+      <div id="category-chips" class="category-chips" role="group" aria-label="หมวดหมู่"></div>
+      <select id="entry-category" hidden aria-label="หมวดหมู่"></select>
+      <div class="entry-info"><label>วันที่<span id="entry-date-label"></span><input id="entry-date" type="date" required></label></div>
+      <label class="note-label" for="entry-note">โน้ต (ไม่บังคับ)</label><textarea id="entry-note" maxlength="300" rows="2" placeholder="เช่น ข้าวมันไก่"></textarea>
+      <div id="amount-keypad" class="amount-keypad" role="group" aria-label="แป้นตัวเลข"><button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button><button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button><button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button><button type="button" data-key=".">.</button><button type="button" data-key="0">0</button><button type="button" data-key="back" aria-label="ลบตัวเลข">⌫</button></div>
+      <div class="dialog-actions"><button id="delete-entry" type="button" class="danger-btn" hidden>ลบรายการ</button><button class="primary-btn" type="submit">บันทึกรายการ</button></div>
+    </form>
+  </dialog>
   <div id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="app.js"></script>
 </body>
