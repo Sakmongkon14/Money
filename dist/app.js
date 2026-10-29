@@ -48,7 +48,8 @@ const CONFIG_KEY = 'daily-money-supabase-v1';
 let entries = readLocal();
 let supabase = null;
 let user = null;
-let period = 'day';
+let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let selectedDate = dateKey(new Date());
 let reportMode = 'week';
 let reportDate = new Date();
 let editId = null;
@@ -64,22 +65,27 @@ function inRange(rows, range) { return rows.filter((e) => e.entry_date >= range[
 function sums(rows) { return rows.reduce((a, e) => { a[e.type] += Number(e.amount); a[e.type + 'Count']++; return a; }, { income: 0, expense: 0, incomeCount: 0, expenseCount: 0 }); }
 function ordered(rows) { return [...rows].sort((a, b) => b.entry_date.localeCompare(a.entry_date) || String(b.created_at || '').localeCompare(String(a.created_at || ''))); }
 function empty(label = 'ยังไม่มีรายการในช่วงนี้') { return `<div class="empty-state"><strong>${label}</strong>เพิ่มรายการแรกเพื่อเริ่มดูสรุปการเงิน</div>`; }
-function rowHtml(e, editable = false) { return `<div class="transaction-row"><div class="tx-icon ${e.type}">${icon(ICONS[e.category] || (e.type === 'income' ? 'income' : 'wallet'))}</div><div class="tx-main"><div class="tx-title">${safeText(e.title)}</div><div class="tx-meta">${safeText(e.category)} · ${shortDate(e.entry_date)}</div></div><div class="tx-amount ${e.type === 'income' ? 'income-text' : 'expense-text'}">${e.type === 'income' ? '+' : '−'}${money(e.amount)}</div>${editable ? `<button class="tx-edit" data-edit="${safeText(e.id)}" aria-label="แก้ไข ${safeText(e.title)}">${icon('more')}</button>` : ''}</div>`; }
+function rowHtml(e, editable = false) { const detail = e.title && e.title !== e.category ? `${safeText(e.title)} · ` : ''; return `<div class="transaction-row"><div class="tx-icon ${e.type}">${icon(ICONS[e.category] || (e.type === 'income' ? 'income' : 'wallet'))}</div><div class="tx-main"><div class="tx-title">${safeText(e.category)}</div><div class="tx-meta">${detail}${e.note ? `${safeText(e.note)} · ` : ''}${shortDate(e.entry_date)}</div></div><div class="tx-amount ${e.type === 'income' ? 'income-text' : 'expense-text'}">${e.type === 'income' ? '+' : '−'}${money(e.amount)}</div>${editable ? `<button class="tx-edit" data-edit="${safeText(e.id)}" aria-label="แก้ไข ${safeText(e.category)}">${icon('more')}</button>` : ''}</div>`; }
 
 function renderOverview() {
-  const range = activeRange(period); const rows = inRange(entries, range); const total = sums(rows);
-  $('#overview-range').textContent = period === 'day' ? titleDate(parseDate(range[0])) : `${shortDate(range[0])} – ${shortDate(range[1])}`;
+  const range = activeRange('month', calendarMonth); const rows = inRange(entries, range); const total = sums(rows);
+  $('#overview-range').textContent = monthTitle(calendarMonth);
   $('#balance-total').textContent = money(total.income - total.expense);
   $('#income-total').textContent = money(total.income); $('#expense-total').textContent = money(total.expense);
   $('#income-count').textContent = `${total.incomeCount} รายการ`; $('#expense-count').textContent = `${total.expenseCount} รายการ`;
-  const recent = ordered(rows).slice(0, 5); $('#recent-list').innerHTML = recent.length ? recent.map((e) => rowHtml(e)).join('') : empty();
-  const days = []; let current = parseDate(range[0]); const end = parseDate(range[1]);
-  while (current <= end) { days.push(dateKey(current)); current = addDays(current, 1); }
-  const chartDays = days.length > 16 ? days.filter((_, i) => i % 2 === 0 || i === days.length - 1) : days;
-  const values = chartDays.map((day) => sums(entries.filter((e) => e.entry_date === day)));
-  const max = Math.max(1, ...values.flatMap((v) => [v.income, v.expense]));
-  $('#chart-caption').textContent = period === 'month' ? 'ทุก 2 วันในเดือนนี้' : 'รายวันในช่วงเวลาที่เลือก';
-  $('#cash-chart').innerHTML = chartDays.map((day, i) => `<div class="chart-col" title="${shortDate(day)}: รายรับ ${money(values[i].income)}, รายจ่าย ${money(values[i].expense)}"><div class="bar-pair"><div class="bar income" style="height:${Math.max(2, values[i].income / max * 100)}%"></div><div class="bar expense" style="height:${Math.max(2, values[i].expense / max * 100)}%"></div></div><span class="chart-day">${Number(day.slice(-2))}</span></div>`).join('');
+  $('#calendar-month').textContent = monthTitle(calendarMonth);
+  const first = parseDate(range[0]); const days = parseDate(range[1]).getDate(); const offset = (first.getDay() + 6) % 7;
+  const byDay = new Map(); for (const e of rows) { const day = byDay.get(e.entry_date) || { income: 0, expense: 0 }; day[e.type] += Number(e.amount); byDay.set(e.entry_date, day); }
+  let cells = Array.from({ length: offset }, () => '<div class="calendar-blank" aria-hidden="true"></div>');
+  for (let day = 1; day <= days; day++) { const key = dateKey(new Date(first.getFullYear(), first.getMonth(), day)); const amounts = byDay.get(key) || { income: 0, expense: 0 }; const today = key === dateKey(new Date()); const selected = key === selectedDate; cells.push(`<button type="button" class="calendar-day${today ? ' today' : ''}${selected ? ' selected' : ''}${amounts.income || amounts.expense ? ' has-data' : ''}" data-calendar-date="${key}" aria-pressed="${selected}" aria-label="${shortDate(key)} รายรับ ${money(amounts.income)} รายจ่าย ${money(amounts.expense)}"><span class="calendar-day-number">${day}</span><span class="calendar-day-amounts">${amounts.income ? `<span class="calendar-income">+${money(amounts.income)}</span>` : ''}${amounts.expense ? `<span class="calendar-expense">−${money(amounts.expense)}</span>` : ''}</span><span class="calendar-dots" aria-hidden="true">${amounts.income ? '<i class="income-dot"></i>' : ''}${amounts.expense ? '<i class="expense-dot"></i>' : ''}</span></button>`); }
+  while (cells.length % 7) cells.push('<div class="calendar-blank" aria-hidden="true"></div>');
+  $('#calendar-grid').innerHTML = cells.join('');
+  const dayRows = ordered(entries.filter((e) => e.entry_date === selectedDate)); const dayTotal = sums(dayRows);
+  $('#selected-day-title').textContent = titleDate(parseDate(selectedDate));
+  $('#selected-day-count').textContent = `${dayRows.length} รายการ`;
+  $('#selected-day-income').textContent = money(dayTotal.income);
+  $('#selected-day-expense').textContent = money(dayTotal.expense);
+  $('#selected-day-list').innerHTML = dayRows.length ? dayRows.map((e) => rowHtml(e)).join('') : empty('ยังไม่มีรายการในวันนี้');
 }
 function renderTransactions() {
   const query = $('#search-input').value.trim().toLocaleLowerCase(TH); const type = $('#type-filter').value; const month = $('#date-filter').value;
@@ -100,7 +106,7 @@ function setView(view) { $$('.view').forEach((x) => x.classList.toggle('active-v
 function updateStorageLabel() { $('#storage-label').textContent = user ? `ซิงก์กับ ${user.email}` : 'บันทึกในเครื่องนี้'; $('#mode-description').textContent = user ? `ข้อมูลกำลังซิงก์กับ Supabase สำหรับ ${user.email}` : 'ตอนนี้ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้'; $('#auth-status').textContent = user ? `เข้าสู่ระบบ: ${user.email}` : 'ยังไม่ได้เข้าสู่ระบบ'; $('#signout-btn').hidden = !user; $('#upload-local-btn').hidden = !user || !readLocal().length; }
 function fillCategories(value = '') { const select = $('#entry-category'); select.innerHTML = CATEGORIES[entryType].map((x) => `<option value="${safeText(x)}">${safeText(x)}</option>`).join(''); if (value && CATEGORIES[entryType].includes(value)) select.value = value; }
 function setEntryType(type, category = '') { entryType = type; $$('[data-entry-type]').forEach((x) => x.classList.toggle('active', x.dataset.entryType === type)); fillCategories(category); }
-function openEntry(e = null) { editId = e?.id || null; deleteArmed = false; $('#delete-entry').textContent = 'ลบรายการ'; $('#entry-form').reset(); $('#dialog-title').textContent = e ? 'แก้ไขรายการ' : 'เพิ่มรายการ'; $('#delete-entry').hidden = !e; setEntryType(e?.type || 'expense', e?.category); $('#entry-date').value = e?.entry_date || dateKey(new Date()); if (e) { $('#entry-amount').value = e.amount; $('#entry-title').value = e.title; $('#entry-note').value = e.note || ''; } $('#entry-dialog').showModal(); }
+function openEntry(e = null, date = null) { editId = e?.id || null; deleteArmed = false; $('#delete-entry').textContent = 'ลบรายการ'; $('#entry-form').reset(); $('#dialog-title').textContent = e ? 'แก้ไขรายการ' : 'เพิ่มรายการ'; $('#delete-entry').hidden = !e; setEntryType(e?.type || 'expense', e?.category); $('#entry-date').value = e?.entry_date || date || dateKey(new Date()); if (e) { $('#entry-amount').value = e.amount; $('#entry-note').value = e.note || ''; } $('#entry-dialog').showModal(); }
 
 async function loadRemote() { if (!supabase || !user) return; const { data, error } = await supabase.from('transactions').select('id,type,amount,title,category,entry_date,note,created_at').order('entry_date', { ascending: false }).limit(5000); if (error) { toast(`โหลดข้อมูลไม่สำเร็จ: ${error.message}`); return; } entries = data || []; render(); }
 async function saveEntry(e) { if (user) { const payload = { type: e.type, amount: e.amount, title: e.title, category: e.category, entry_date: e.entry_date, note: e.note, user_id: user.id }; const result = editId ? await supabase.from('transactions').update(payload).eq('id', editId) : await supabase.from('transactions').insert(payload); if (result.error) throw result.error; await loadRemote(); } else { if (editId) entries = entries.map((old) => old.id === editId ? { ...old, ...e } : old); else entries.push({ ...e, id: crypto.randomUUID(), created_at: new Date().toISOString() }); saveLocal(); render(); } }
@@ -117,7 +123,12 @@ async function importCsv(file) { if (user) return toast('กรุณาออ�
 
 $$('[data-view]').forEach((a) => a.addEventListener('click', () => setView(a.dataset.view)));
 $$('.add-trigger').forEach((b) => b.addEventListener('click', () => openEntry()));
-$$('[data-period]').forEach((b) => b.addEventListener('click', () => { period = b.dataset.period; $$('[data-period]').forEach((x) => x.classList.toggle('active', x === b)); renderOverview(); }));
+$('#calendar-grid').addEventListener('click', (event) => { const date = event.target.closest('[data-calendar-date]')?.dataset.calendarDate; if (date) { selectedDate = date; renderOverview(); } });
+function moveCalendarMonth(offset) { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + offset, 1); selectedDate = dateKey(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), Math.min(parseDate(selectedDate).getDate(), new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate()))); renderOverview(); }
+$('#calendar-prev').addEventListener('click', () => moveCalendarMonth(-1));
+$('#calendar-next').addEventListener('click', () => moveCalendarMonth(1));
+$('#calendar-today').addEventListener('click', () => { calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1); selectedDate = dateKey(new Date()); renderOverview(); });
+$('#calendar-add').addEventListener('click', () => openEntry(null, selectedDate));
 $$('[data-report]').forEach((b) => b.addEventListener('click', () => { reportMode = b.dataset.report; reportDate = new Date(); $$('[data-report]').forEach((x) => x.classList.toggle('active', x === b)); renderReports(); }));
 $('#report-prev').addEventListener('click', () => { reportDate = reportMode === 'week' ? addDays(reportDate, -7) : new Date(reportDate.getFullYear(), reportDate.getMonth() - 1, 1); renderReports(); });
 $('#report-next').addEventListener('click', () => { reportDate = reportMode === 'week' ? addDays(reportDate, 7) : new Date(reportDate.getFullYear(), reportDate.getMonth() + 1, 1); renderReports(); });
@@ -126,7 +137,7 @@ $('#clear-filters').addEventListener('click', () => { $('#search-input').value =
 $('#all-list').addEventListener('click', (event) => { const id = event.target.closest('[data-edit]')?.dataset.edit; if (id) openEntry(entries.find((e) => e.id === id)); });
 $('#close-dialog').addEventListener('click', () => $('#entry-dialog').close());
 $$('[data-entry-type]').forEach((b) => b.addEventListener('click', () => setEntryType(b.dataset.entryType)));
-$('#entry-form').addEventListener('submit', async (event) => { event.preventDefault(); const e = { type: entryType, amount: Number($('#entry-amount').value), title: $('#entry-title').value.trim(), category: $('#entry-category').value, entry_date: $('#entry-date').value, note: $('#entry-note').value.trim() }; if (!e.amount || e.amount <= 0 || !e.title || !e.entry_date) return toast('กรุณากรอกข้อมูลให้ครบ'); try { await saveEntry(e); $('#entry-dialog').close(); toast('บันทึกรายการแล้ว'); } catch (error) { toast(`บันทึกไม่สำเร็จ: ${error.message}`); } });
+$('#entry-form').addEventListener('submit', async (event) => { event.preventDefault(); const category = $('#entry-category').value; const previous = entries.find((x) => x.id === editId); const title = previous?.title && previous.title !== previous.category ? previous.title : category; const e = { type: entryType, amount: Number($('#entry-amount').value), title, category, entry_date: $('#entry-date').value, note: $('#entry-note').value.trim() }; if (!e.amount || e.amount <= 0 || !e.category || !e.entry_date) return toast('กรุณากรอกข้อมูลให้ครบ'); try { await saveEntry(e); $('#entry-dialog').close(); toast('บันทึกรายการแล้ว'); } catch (error) { toast(`บันทึกไม่สำเร็จ: ${error.message}`); } });
 $('#delete-entry').addEventListener('click', deleteEntry);
 $('#export-btn').addEventListener('click', exportCsv);
 $('#import-input').addEventListener('change', (event) => { const file = event.target.files?.[0]; if (file) importCsv(file); event.target.value = ''; });
