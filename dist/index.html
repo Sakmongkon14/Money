@@ -78,24 +78,23 @@
       </section>
 
       <section id="investments" class="view">
-        <div class="page-heading"><h1>เงินออมและลงทุน</h1><span class="section-hint">Dime · GoldNow</span></div>
+        <div class="page-heading"><h1>เงินออมและลงทุน</h1><span class="section-hint">Dime · GoldNow · เงินฉุกเฉิน</span></div>
         <div class="investment-layout">
           <section class="investment-main" aria-labelledby="investment-heading">
-            <div class="investment-hero">
-              <div><p>ยอดเงินที่คุณบันทึก</p><strong id="investment-total">฿0</strong></div>
-              <div id="investment-strip" class="investment-strip" aria-label="สัดส่วนการลงทุน"></div>
-              <div class="investment-hero-foot"><span>Dime · GoldNow</span><span id="investment-sum">กรอกยอดเงินเพื่อดูสัดส่วน</span></div>
+            <div class="investment-section-head investment-chart-heading"><h2 id="investment-heading">สัดส่วนของคุณ</h2><span id="investment-status" class="section-hint" role="status"></span></div>
+            <div class="investment-chart-card">
+              <div id="investment-chart" class="investment-chart" role="img" aria-label="ยังไม่มียอดเงินออมและลงทุน"><div class="investment-chart-center"><span>ยอดเงินรวม</span><strong id="investment-total">฿0</strong></div></div>
+              <p id="investment-sum">กรอกยอดเงินเพื่อดูสัดส่วน</p>
             </div>
-            <div class="investment-section-head"><h2 id="investment-heading">สัดส่วนของคุณ</h2><span id="investment-status" class="section-hint" role="status"></span></div>
             <div id="investment-preview" class="investment-preview"></div>
           </section>
           <section class="investment-editor" aria-labelledby="investment-edit-heading">
             <div class="investment-section-head"><h2 id="investment-edit-heading">กรอกยอดเงิน</h2></div>
-            <p class="investment-help">กรอกจำนวนเงินบาทในแต่ละที่ แล้วแอปคำนวณเปอร์เซ็นต์ให้ทันที</p>
+            <p class="investment-help">กรอกจำนวนเงินบาทใน Dime, GoldNow และเงินฉุกเฉิน แอปจะคำนวณสัดส่วนให้ทันที</p>
             <form id="investment-form">
               <div class="investment-table-head"><span>ที่ออม / ลงทุน</span><span>จำนวนเงิน (บาท)</span></div>
               <div id="investment-rows" class="investment-rows"></div>
-              <div class="investment-row-actions"><span>รวม Dime + GoldNow</span><strong id="investment-remaining">฿0</strong></div>
+              <div class="investment-row-actions"><span>ยอดรวมทั้ง 3 ที่</span><strong id="investment-remaining">฿0</strong></div>
               <button id="investment-save" class="primary-btn investment-save" type="submit">บันทึกยอดเงิน</button>
             </form>
             <p class="investment-footnote">ยอดเงินนี้คุณกรอกเอง แอปยังไม่ดึงข้อมูลจาก Dime หรือ GoldNow และไม่หักจากรายรับรายจ่าย</p>

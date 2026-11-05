@@ -152,15 +152,16 @@ h3 { font-size: 14px; font-weight: 700; }
 .report-summary strong { display: block; margin-top: 4px; font-size: 19px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .investment-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr); align-items: start; gap: 38px; }
 .investment-main, .investment-editor { min-width: 0; }
-.investment-hero { padding: 25px; border-radius: 21px; background: #14231e; color: #fff; }
-.investment-hero p { color: #d5eee5; font-size: 13px; }
-.investment-hero strong { display: block; margin: 5px 0 22px; font-size: clamp(36px, 4vw, 49px); line-height: 1.2; letter-spacing: -.035em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.investment-strip { display: flex; width: 100%; height: 15px; overflow: hidden; border-radius: 20px; background: #365247; }
-.investment-strip span { flex: none; min-width: 0; }
-.investment-hero-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; color: #d5eee5; font-size: 12px; }
+.investment-chart-card { display: flex; flex-direction: column; align-items: center; padding: 25px; border-radius: 21px; background: #14231e; color: #fff; }
+.investment-chart { display: grid; place-items: center; width: 220px; height: 220px; max-width: 100%; border-radius: 50%; background: #365247; }
+.investment-chart-center { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 73%; height: 73%; padding: 11px; border-radius: 50%; background: #14231e; text-align: center; }
+.investment-chart-center span { color: #d5eee5; font-size: 12px; }
+.investment-chart-center strong { margin-top: 4px; font-size: 29px; line-height: 1.2; letter-spacing: -.035em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.investment-chart-card p { margin-top: 14px; color: #d5eee5; font-size: 12px; text-align: center; }
 .investment-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 25px 0 10px; }
 .investment-section-head h2 { font-size: 17px; }
-.investment-preview { display: grid; }
+.investment-chart-heading { margin-top: 0; margin-bottom: 13px; }
+.investment-preview { display: grid; margin-top: 11px; }
 .investment-item { display: grid; grid-template-columns: 12px minmax(0, 1fr) 56px minmax(85px, auto); align-items: center; gap: 10px; min-height: 58px; border-bottom: 1px solid var(--line); font-size: 14px; }
 .investment-swatch { width: 11px; height: 11px; border-radius: 3px; }
 .investment-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
