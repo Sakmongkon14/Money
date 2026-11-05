@@ -18,6 +18,7 @@ const ICON_PATHS = {
   grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   list: '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
   chart: '<path d="M4 20V12M10 20V5M16 20v-9M22 20V8"/>',
+  invest: '<path d="M3 20h18M5 17l5-5 4 3 5-8M16 7h3v3"/>',
   settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06-1.8 1.8-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.52V20h-2.55v-.09a1.65 1.65 0 0 0-1-1.52 1.65 1.65 0 0 0-1.82.33l-.06.06-1.8-1.8.06-.06A1.65 1.65 0 0 0 8.27 15a1.65 1.65 0 0 0-1.52-1H6v-2.55h.09a1.65 1.65 0 0 0 1.52-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06 1.8-1.8.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.52V5h2.55v.09a1.65 1.65 0 0 0 1 1.52 1.65 1.65 0 0 0 1.82-.33l.06-.06 1.8 1.8-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.52 1H20V14h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
   wallet: '<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 9V6a2 2 0 0 1 2-2h13M16 13h5"/>',
   income: '<path d="M7 7l10 10M17 8v9H8"/>',
@@ -37,14 +38,18 @@ const ICON_PATHS = {
 };
 function icon(name) { return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">${ICON_PATHS[name] || ICON_PATHS.wallet}</svg>`; }
 function hydrateIcons() {
-  const navigation = { overview: 'home', transactions: 'wallet', reports: 'chart', settings: 'settings' };
+  const navigation = { overview: 'home', transactions: 'wallet', reports: 'chart', investments: 'invest', settings: 'settings' };
   $$('.nav-link').forEach((a) => { a.querySelector('span').innerHTML = icon(navigation[a.dataset.view]); });
   $$('.mobile-nav a').forEach((a) => { const label = a.querySelector('span').textContent; a.innerHTML = icon(navigation[a.dataset.view]) + `<span>${label}</span>`; });
   $$('.add-trigger').forEach((b) => { b.innerHTML = icon('plus') + (b.classList.contains('floating-add') ? '' : '<span>เพิ่มรายการ</span>'); });
 }
 const LOCAL_KEY = 'daily-money-entries-v1';
 const CONFIG_KEY = 'daily-money-supabase-v1';
+const INVESTMENT_KEY = 'daily-money-investment-plan-v1';
+const INVESTMENT_COLORS = ['#79d8b4', '#e4ad66', '#82aee2', '#b79cda', '#d4e1b0', '#eaa39b', '#8fd5d2', '#d0b391'];
+const INVESTMENT_SUGGESTIONS = ['หุ้น', 'กองทุน', 'ตราสารหนี้', 'ทองคำ', 'เงินสด', 'คริปโต'];
 let entries = readLocal();
+let investmentPlan = readInvestmentLocal();
 let supabase = null;
 let user = null;
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -56,6 +61,12 @@ let entryType = 'expense';
 let deleteArmed = false;
 
 function readLocal() { try { const x = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); return Array.isArray(x) ? x : []; } catch { return []; } }
+function normalizeInvestmentPlan(value) {
+  const raw = value && typeof value === 'object' ? value : {};
+  return { budget: Number.isFinite(Number(raw.budget)) && Number(raw.budget) >= 0 ? Number(raw.budget) : 0,
+    assets: Array.isArray(raw.assets) ? raw.assets.slice(0, 8).map((asset) => ({ name: String(asset?.name || '').slice(0, 40), percent: Number(asset?.percent) || 0 })).filter((asset) => asset.name) : [] };
+}
+function readInvestmentLocal() { try { return normalizeInvestmentPlan(JSON.parse(localStorage.getItem(INVESTMENT_KEY) || 'null')); } catch { return normalizeInvestmentPlan(null); } }
 function saveLocal() { localStorage.setItem(LOCAL_KEY, JSON.stringify(entries)); }
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 3500); }
 function safeText(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
@@ -113,6 +124,36 @@ function renderReports() {
   const peak = Math.max(1, ...daily);
   $('#week-bars').innerHTML = lastWeek.map((day, i) => `<div class="week-bar" title="${shortDate(dateKey(day))}: ${money(daily[i])}"><div class="bar-track"><span class="${i === 6 ? 'current' : ''}" style="height:${daily[i] ? Math.max(9, daily[i] / peak * 100) : 4}%"></span></div><small>${i === 6 ? 'วันนี้' : new Intl.DateTimeFormat(TH, { weekday: 'short' }).format(day)}</small></div>`).join('');
 }
+function investmentRowHtml(asset = { name: '', percent: '' }) {
+  return `<div class="investment-row"><input class="asset-name" type="text" maxlength="40" placeholder="ชื่อสินทรัพย์" aria-label="ชื่อสินทรัพย์" value="${safeText(asset.name)}" required><div class="investment-percent"><input class="asset-percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0" aria-label="เปอร์เซ็นต์" value="${asset.percent === '' ? '' : safeText(asset.percent)}" required><span>%</span></div><button class="investment-remove" type="button" aria-label="ลบสินทรัพย์">×</button></div>`;
+}
+function readInvestmentForm() {
+  return { budget: Number($('#investment-budget').value), assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.querySelector('.asset-name').value.trim(), percent: Number(row.querySelector('.asset-percent').value) })) };
+}
+function updateInvestmentPreview() {
+  const plan = readInvestmentForm();
+  const totalPercent = plan.assets.reduce((sum, asset) => sum + (Number.isFinite(asset.percent) ? asset.percent : 0), 0);
+  const remaining = Math.round((100 - totalPercent) * 10) / 10;
+  $('#investment-total').textContent = money(plan.budget);
+  $('#investment-count').textContent = `${plan.assets.filter((asset) => asset.name).length} สินทรัพย์`;
+  $('#investment-sum').textContent = `${totalPercent.toLocaleString(TH, { maximumFractionDigits: 1 })}% จาก 100%`;
+  $('#investment-remaining').textContent = remaining >= 0 ? `เหลือ ${remaining}%` : `เกิน ${Math.abs(remaining)}%`;
+  $('#investment-remaining').classList.toggle('invalid', remaining < 0);
+  const named = plan.assets.filter((asset) => asset.name && asset.percent > 0);
+  $('#investment-strip').innerHTML = named.map((asset, index) => `<span style="width:${Math.max(0, Math.min(100, asset.percent))}%;background:${INVESTMENT_COLORS[index % INVESTMENT_COLORS.length]}" title="${safeText(asset.name)} ${asset.percent}%"></span>`).join('');
+  $('#investment-preview').innerHTML = named.length ? named.map((asset, index) => `<div class="investment-item"><span class="investment-swatch" style="background:${INVESTMENT_COLORS[index % INVESTMENT_COLORS.length]}"></span><span class="investment-item-name">${safeText(asset.name)}</span><span class="investment-item-percent">${asset.percent}%</span><strong>${money(plan.budget * asset.percent / 100)}</strong></div>`).join('') : '<div class="investment-empty">เพิ่มสินทรัพย์และกำหนดสัดส่วน เพื่อดูจำนวนเงินที่จัดสรร</div>';
+  $('#investment-suggestions').innerHTML = INVESTMENT_SUGGESTIONS.filter((name) => !plan.assets.some((asset) => asset.name === name)).map((name) => `<button type="button" data-suggest="${name}">${name}</button>`).join('');
+}
+function renderInvestmentEditor() {
+  $('#investment-budget').value = investmentPlan.budget || '';
+  $('#investment-rows').innerHTML = (investmentPlan.assets.length ? investmentPlan.assets : [{ name: '', percent: '' }]).map(investmentRowHtml).join('');
+  $('#investment-status').textContent = user ? 'ซิงก์กับบัญชีของคุณ' : 'บันทึกในเครื่องนี้';
+  updateInvestmentPreview();
+}
+function loadInvestmentForUser() {
+  investmentPlan = user ? normalizeInvestmentPlan(user.user_metadata?.investment_plan) : readInvestmentLocal();
+  renderInvestmentEditor();
+}
 function render() { renderOverview(); renderTransactions(); renderReports(); updateStorageLabel(); }
 function setView(view) { $$('.view').forEach((x) => x.classList.toggle('active-view', x.id === view)); $$('[data-view]').forEach((x) => x.classList.toggle('active', x.dataset.view === view)); document.body.dataset.view = view; window.scrollTo(0, 0); }
 function updateStorageLabel() { $('#storage-label').textContent = user ? `ซิงก์กับ ${user.email}` : 'บันทึกในเครื่องนี้'; $('#mode-description').textContent = user ? `ข้อมูลซิงก์กับ Supabase สำหรับ ${user.email}` : 'ตอนนี้ข้อมูลเก็บในเบราว์เซอร์เครื่องนี้'; $('#storage-notice').textContent = user ? 'ข้อมูลบัญชีนี้ซิงก์ข้ามอุปกรณ์แล้ว คุณสามารถส่งออก CSV เพื่อเก็บสำรองเพิ่มเติมได้' : 'ข้อมูลในเครื่องอยู่เฉพาะเบราว์เซอร์นี้ กรุณาส่งออกไฟล์สำรองเป็นระยะ'; $('#auth-status').textContent = user ? `เข้าสู่ระบบ: ${user.email}` : 'ยังไม่ได้เข้าสู่ระบบ'; $('#signout-btn').hidden = !user; $('#upload-local-btn').hidden = !user || !readLocal().length; }
@@ -125,8 +166,8 @@ async function loadRemote() { if (!supabase || !user) return; const { data, erro
 async function saveEntry(e) { if (user) { const payload = { type: e.type, amount: e.amount, title: e.title, category: e.category, entry_date: e.entry_date, note: e.note, user_id: user.id }; const result = editId ? await supabase.from('transactions').update(payload).eq('id', editId) : await supabase.from('transactions').insert(payload); if (result.error) throw result.error; await loadRemote(); } else { if (editId) entries = entries.map((old) => old.id === editId ? { ...old, ...e } : old); else entries.push({ ...e, id: crypto.randomUUID(), created_at: new Date().toISOString() }); saveLocal(); render(); } }
 async function deleteEntry() { if (!editId) return; if (!deleteArmed) { deleteArmed = true; $('#delete-entry').textContent = 'ยืนยันลบ'; return; } try { if (user) { const { error } = await supabase.from('transactions').delete().eq('id', editId); if (error) throw error; await loadRemote(); } else { entries = entries.filter((e) => e.id !== editId); saveLocal(); render(); } $('#entry-dialog').close(); toast('ลบรายการแล้ว'); } catch (error) { toast(`ลบไม่สำเร็จ: ${error.message}`); } }
 
-async function connectSupabase() { const config = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); if (!config) return; try { const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'); supabase = createClient(config.url, config.key); $('#auth-area').hidden = false; const { data: { session } } = await supabase.auth.getSession(); user = session?.user || null; if (user) await loadRemote(); else { entries = readLocal(); render(); } supabase.auth.onAuthStateChange((_event, session) => { const nextId = session?.user?.id || null; if (nextId === user?.id) return; user = session?.user || null; if (user) setTimeout(loadRemote, 0); else { entries = readLocal(); render(); } updateStorageLabel(); }); updateStorageLabel(); } catch (error) { supabase = null; $('#auth-area').hidden = true; toast(`เชื่อมต่อไม่สำเร็จ: ${error.message}`); } }
-async function authSubmit(signup = false) { if (!supabase) return toast('กรุณาตั้งค่า Supabase ก่อน'); const email = $('#auth-email').value.trim(); const password = $('#auth-password').value; if (!email || password.length < 6) return toast('กรอกอีเมลและรหัสผ่านอย่างน้อย 6 ตัวอักษร'); const { data, error } = signup ? await supabase.auth.signUp({ email, password }) : await supabase.auth.signInWithPassword({ email, password }); if (error) return toast(error.message); if (data.session) { user = data.user; await loadRemote(); toast('เข้าสู่ระบบแล้ว'); } else toast('สมัครบัญชีแล้ว กรุณายืนยันอีเมลตามที่ Supabase ส่งให้'); updateStorageLabel(); }
+async function connectSupabase() { const config = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); if (!config) return; try { const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'); supabase = createClient(config.url, config.key); $('#auth-area').hidden = false; const { data: { session } } = await supabase.auth.getSession(); const fresh = session ? await supabase.auth.getUser() : null; user = fresh?.data?.user || session?.user || null; loadInvestmentForUser(); if (user) await loadRemote(); else { entries = readLocal(); render(); } supabase.auth.onAuthStateChange((_event, session) => { const nextId = session?.user?.id || null; if (nextId === user?.id) return; user = session?.user || null; loadInvestmentForUser(); if (user) setTimeout(loadRemote, 0); else { entries = readLocal(); render(); } updateStorageLabel(); }); updateStorageLabel(); } catch (error) { supabase = null; $('#auth-area').hidden = true; toast(`เชื่อมต่อไม่สำเร็จ: ${error.message}`); } }
+async function authSubmit(signup = false) { if (!supabase) return toast('กรุณาตั้งค่า Supabase ก่อน'); const email = $('#auth-email').value.trim(); const password = $('#auth-password').value; if (!email || password.length < 6) return toast('กรอกอีเมลและรหัสผ่านอย่างน้อย 6 ตัวอักษร'); const { data, error } = signup ? await supabase.auth.signUp({ email, password }) : await supabase.auth.signInWithPassword({ email, password }); if (error) return toast(error.message); if (data.session) { user = data.user; loadInvestmentForUser(); await loadRemote(); toast('เข้าสู่ระบบแล้ว'); } else toast('สมัครบัญชีแล้ว กรุณายืนยันอีเมลตามที่ Supabase ส่งให้'); updateStorageLabel(); }
 async function uploadLocal() { if (!user) return; const local = readLocal(); if (!local.length || !confirm(`คัดลอก ${local.length} รายการจากเครื่องนี้ขึ้น Supabase ใช่ไหม?`)) return; const payload = local.map((e) => ({ user_id: user.id, type: e.type, amount: e.amount, title: e.title, category: e.category, entry_date: e.entry_date, note: e.note || '' })); const { error } = await supabase.from('transactions').insert(payload); if (error) return toast(`นำเข้าข้อมูลไม่สำเร็จ: ${error.message}`); localStorage.removeItem(LOCAL_KEY); await loadRemote(); toast('คัดลอกรายการขึ้น Supabase แล้ว'); }
 
 function csvEscape(value) { return `"${String(value ?? '').replaceAll('"', '""')}"`; }
@@ -135,6 +176,24 @@ function parseCsv(text) { const rows = []; let row = [], cell = '', quoted = fal
 async function importCsv(file) { if (user) return toast('กรุณาออกจากระบบก่อนนำเข้า CSV ในเครื่อง'); const rows = parseCsv((await file.text()).replace(/^\ufeff/, '')); if (rows.length < 2 || rows[0].join(',') !== 'date,type,amount,title,category,note') return toast('รูปแบบ CSV ไม่ถูกต้อง'); const imported = rows.slice(1).map(([date, type, amount, title, category, note]) => ({ id: crypto.randomUUID(), entry_date: date, type, amount: Number(amount), title, category, note, created_at: new Date().toISOString() })).filter((e) => /^\d{4}-\d{2}-\d{2}$/.test(e.entry_date) && ['income', 'expense'].includes(e.type) && e.amount > 0 && e.title); entries.push(...imported); saveLocal(); render(); toast(`นำเข้า ${imported.length} รายการแล้ว`); }
 
 $$('[data-view]').forEach((a) => a.addEventListener('click', () => setView(a.dataset.view)));
+$('#investment-form').addEventListener('input', () => { updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
+$('#investment-rows').addEventListener('click', (event) => { if (!event.target.closest('.investment-remove')) return; event.target.closest('.investment-row').remove(); updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
+$('#investment-add').addEventListener('click', () => { if ($$('#investment-rows .investment-row').length >= 8) return toast('เพิ่มได้สูงสุด 8 สินทรัพย์'); $('#investment-rows').insertAdjacentHTML('beforeend', investmentRowHtml()); $('#investment-rows .investment-row:last-child .asset-name').focus(); updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
+$('#investment-suggestions').addEventListener('click', (event) => { const name = event.target.closest('[data-suggest]')?.dataset.suggest; if (!name) return; const blank = $$('#investment-rows .investment-row').find((row) => !row.querySelector('.asset-name').value.trim()); if (blank) blank.querySelector('.asset-name').value = name; else { if ($$('#investment-rows .investment-row').length >= 8) return toast('เพิ่มได้สูงสุด 8 สินทรัพย์'); $('#investment-rows').insertAdjacentHTML('beforeend', investmentRowHtml({ name, percent: '' })); } updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
+$('#investment-form').addEventListener('submit', async (event) => {
+  event.preventDefault(); const plan = readInvestmentForm(); const total = plan.assets.reduce((sum, asset) => sum + asset.percent, 0);
+  if (!Number.isFinite(plan.budget) || plan.budget <= 0) return toast('กรุณากรอกงบลงทุนมากกว่า 0 บาท');
+  if (!plan.assets.length || plan.assets.some((asset) => !asset.name || !Number.isFinite(asset.percent) || asset.percent <= 0 || asset.percent > 100)) return toast('กรุณากรอกชื่อและสัดส่วนของทุกสินทรัพย์');
+  if (new Set(plan.assets.map((asset) => asset.name.toLocaleLowerCase(TH))).size !== plan.assets.length) return toast('ชื่อสินทรัพย์ต้องไม่ซ้ำกัน');
+  if (Math.abs(total - 100) > 0.001) return toast('สัดส่วนทั้งหมดต้องรวมกัน 100%');
+  const button = $('#investment-save'); button.disabled = true; button.textContent = 'กำลังบันทึก…';
+  try {
+    if (user) { const { data, error } = await supabase.auth.updateUser({ data: { investment_plan: plan } }); if (error) throw error; user = data.user; }
+    else localStorage.setItem(INVESTMENT_KEY, JSON.stringify(plan));
+    investmentPlan = plan; $('#investment-status').textContent = user ? 'ซิงก์กับบัญชีของคุณ' : 'บันทึกในเครื่องนี้'; toast('บันทึกแผนลงทุนแล้ว');
+  } catch (error) { toast(`บันทึกแผนไม่สำเร็จ: ${error.message}`); }
+  finally { button.disabled = false; button.textContent = 'บันทึกแผนลงทุน'; }
+});
 $$('.add-trigger').forEach((b) => b.addEventListener('click', () => openEntry()));
 $('#home-month').addEventListener('change', (event) => { if (!event.target.value) return; const [year, month] = event.target.value.split('-').map(Number); calendarMonth = new Date(year, month - 1, 1); selectedDate = dateKey(new Date(year, month - 1, Math.min(parseDate(selectedDate).getDate(), new Date(year, month, 0).getDate()))); renderOverview(); });
 $('#recent-list').addEventListener('click', (event) => { const id = event.target.closest('[data-edit]')?.dataset.edit; if (id) openEntry(entries.find((e) => e.id === id)); });
@@ -163,11 +222,12 @@ $('#import-input').addEventListener('change', (event) => { const file = event.ta
 $('#config-form').addEventListener('submit', async (event) => { event.preventDefault(); const url = $('#supabase-url').value.trim().replace(/\/$/, ''); const key = $('#supabase-key').value.trim(); if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url) || !key.startsWith('sb_publishable_')) return toast('กรุณากรอก Supabase URL และ publishable key ให้ถูกต้อง'); localStorage.setItem(CONFIG_KEY, JSON.stringify({ url, key })); await connectSupabase(); if (supabase) toast('บันทึกการเชื่อมต่อแล้ว'); });
 $('#auth-form').addEventListener('submit', (event) => { event.preventDefault(); authSubmit(false); });
 $('#signup-btn').addEventListener('click', () => authSubmit(true));
-$('#signout-btn').addEventListener('click', async () => { await supabase.auth.signOut(); user = null; entries = readLocal(); render(); toast('ออกจากระบบแล้ว'); });
+$('#signout-btn').addEventListener('click', async () => { await supabase.auth.signOut(); user = null; entries = readLocal(); loadInvestmentForUser(); render(); toast('ออกจากระบบแล้ว'); });
 $('#upload-local-btn').addEventListener('click', uploadLocal);
 hydrateIcons();
+renderInvestmentEditor();
 $('#today-label').textContent = titleDate(new Date());
 const config = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); if (config) { $('#supabase-url').value = config.url; $('#supabase-key').value = config.key; connectSupabase(); }
-const initialView = location.hash.slice(1); setView(['overview', 'transactions', 'reports', 'settings'].includes(initialView) ? initialView : 'overview');
-window.addEventListener('hashchange', () => { const view = location.hash.slice(1); if (['overview', 'transactions', 'reports', 'settings'].includes(view)) setView(view); });
+const initialView = location.hash.slice(1); setView(['overview', 'transactions', 'reports', 'investments', 'settings'].includes(initialView) ? initialView : 'overview');
+window.addEventListener('hashchange', () => { const view = location.hash.slice(1); if (['overview', 'transactions', 'reports', 'investments', 'settings'].includes(view)) setView(view); });
 render();

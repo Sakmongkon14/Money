@@ -15,6 +15,7 @@
       <nav class="side-nav" aria-label="เมนูหลัก">
         <a class="nav-link active" href="#overview" data-view="overview"><span></span>หน้าหลัก</a>
         <a class="nav-link" href="#reports" data-view="reports"><span></span>สถิติ</a>
+        <a class="nav-link" href="#investments" data-view="investments"><span></span>ลงทุน</a>
         <a class="nav-link" href="#transactions" data-view="transactions"><span></span>รายการ</a>
         <a class="nav-link" href="#settings" data-view="settings"><span></span>ตั้งค่า</a>
       </nav>
@@ -76,6 +77,35 @@
         </div>
       </section>
 
+      <section id="investments" class="view">
+        <div class="page-heading"><h1>แผนลงทุน</h1><span class="section-hint">วางแผนเงินของคุณในแต่ละเดือน</span></div>
+        <div class="investment-layout">
+          <section class="investment-main" aria-labelledby="investment-heading">
+            <div class="investment-hero">
+              <div><p>เงินที่ตั้งใจลงทุนต่อเดือน</p><strong id="investment-total">฿0</strong></div>
+              <div id="investment-strip" class="investment-strip" aria-label="สัดส่วนการลงทุน"></div>
+              <div class="investment-hero-foot"><span id="investment-count">ยังไม่มีสินทรัพย์</span><span id="investment-sum">0% จาก 100%</span></div>
+            </div>
+            <div class="investment-section-head"><h2 id="investment-heading">แบ่งสัดส่วน</h2><span id="investment-status" class="section-hint" role="status"></span></div>
+            <div id="investment-preview" class="investment-preview"></div>
+          </section>
+          <section class="investment-editor" aria-labelledby="investment-edit-heading">
+            <div class="investment-section-head"><h2 id="investment-edit-heading">จัดแผนของฉัน</h2></div>
+            <p class="investment-help">กำหนดงบและเปอร์เซ็นต์ของสินทรัพย์แต่ละประเภทให้รวมกัน 100%</p>
+            <form id="investment-form">
+              <label class="investment-budget-label" for="investment-budget">งบลงทุนต่อเดือน <span>บาท</span></label>
+              <input id="investment-budget" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="เช่น 5,000" required>
+              <div class="investment-table-head"><span>สินทรัพย์</span><span>สัดส่วน</span></div>
+              <div id="investment-rows" class="investment-rows"></div>
+              <div class="investment-row-actions"><button id="investment-add" class="secondary-btn" type="button">+ เพิ่มสินทรัพย์</button><strong id="investment-remaining">เหลือ 100%</strong></div>
+              <div class="investment-suggestions"><span>เพิ่มอย่างรวดเร็ว</span><div id="investment-suggestions"></div></div>
+              <button id="investment-save" class="primary-btn investment-save" type="submit">บันทึกแผนลงทุน</button>
+            </form>
+            <p class="investment-footnote">หน้านี้ใช้วางแผนสัดส่วนเท่านั้น ยังไม่บันทึกเป็นรายจ่ายหรือเชื่อมบัญชีลงทุน</p>
+          </section>
+        </div>
+      </section>
+
       <section id="transactions" class="view">
         <div class="page-heading"><h1>รายการทั้งหมด</h1><button class="primary-btn add-trigger" type="button">เพิ่มรายการ</button></div>
         <div class="filter-row"><label class="search-wrap"><span class="search-icon">⌕</span><input id="search-input" type="search" placeholder="ค้นหารายการ" aria-label="ค้นหารายการ"></label><select id="type-filter" aria-label="กรองประเภทรายการ"><option value="all">ทั้งหมด</option><option value="income">รายรับ</option><option value="expense">รายจ่าย</option></select><input id="date-filter" type="month" aria-label="กรองเดือน"><button id="clear-filters" class="text-btn" type="button">ล้าง</button></div>
@@ -93,7 +123,7 @@
   </div>
 
   <button class="floating-add add-trigger" type="button" aria-label="เพิ่มรายการ"><span aria-hidden="true">＋</span></button>
-  <nav class="mobile-nav" aria-label="เมนูหลักบนมือถือ"><a href="#overview" data-view="overview" class="active"><span>หน้าหลัก</span></a><a href="#reports" data-view="reports"><span>สถิติ</span></a><a href="#transactions" data-view="transactions"><span>รายการ</span></a><a href="#settings" data-view="settings"><span>ตั้งค่า</span></a></nav>
+  <nav class="mobile-nav" aria-label="เมนูหลักบนมือถือ"><a href="#overview" data-view="overview" class="active"><span>หน้าหลัก</span></a><a href="#reports" data-view="reports"><span>สถิติ</span></a><a href="#investments" data-view="investments"><span>ลงทุน</span></a><a href="#transactions" data-view="transactions"><span>รายการ</span></a><a href="#settings" data-view="settings"><span>ตั้งค่า</span></a></nav>
 
   <dialog id="entry-dialog" class="entry-dialog">
     <form id="entry-form" method="dialog">
