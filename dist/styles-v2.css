@@ -184,6 +184,11 @@ h3 { font-size: 14px; font-weight: 700; }
 .investment-amount input { padding-right: 25px; text-align: right; font-variant-numeric: tabular-nums; }
 .investment-amount span { position: absolute; right: 9px; top: 13px; color: var(--muted); font-size: 13px; pointer-events: none; }
 .investment-calc { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 10px; padding-bottom: 3px; }
+.investment-rate-control { display: grid; gap: 7px; min-width: 0; }
+.investment-direction { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 10px; background: #e9efec; }
+.investment-direction button { min-width: 0; min-height: 34px; padding: 5px 3px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.investment-direction button[aria-pressed="true"] { background: #fff; color: var(--green-dark); box-shadow: 0 1px 4px #1635271c; }
+.investment-direction button[data-rate-sign="loss"][aria-pressed="true"] { color: var(--expense); }
 .investment-rate-field { display: grid; gap: 5px; min-width: 0; }
 .investment-rate-field > span, .investment-calc-result > span { color: var(--muted); font-size: 11px; }
 .investment-rate-input { position: relative; }

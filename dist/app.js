@@ -73,7 +73,8 @@ function normalizeInvestmentPlan(value) {
         ? Math.round(oldBudget * oldPercent) / 100 : 0;
     const savedRate = Number(saved?.ratePercent);
     const ratePercent = Number.isFinite(savedRate) && savedRate >= (name === 'ปล่อยดอก' ? 0 : -100) && savedRate <= 10000 ? Math.round(savedRate * 100) / 100 : 0;
-    return { name, amount: Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : 0, ...(name !== 'เงินฉุกเฉิน' ? { ratePercent } : {}) };
+    const rateSign = saved?.rateSign === 'loss' || ratePercent < 0 ? 'loss' : 'gain';
+    return { name, amount: Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : 0, ...(name !== 'เงินฉุกเฉิน' ? { ratePercent } : {}), ...(name === 'Dime' || name === 'GoldNow' ? { rateSign } : {}) };
   }) };
 }
 function readInvestmentLocal() { try { return normalizeInvestmentPlan(JSON.parse(localStorage.getItem(INVESTMENT_KEY) || 'null')); } catch { return normalizeInvestmentPlan(null); } }
@@ -138,11 +139,13 @@ function investmentRowHtml(asset) {
   const detail = asset.name === 'Dime' ? 'เงินต้นใน Dime' : asset.name === 'GoldNow' ? 'ทองใน GoldNow' : asset.name === 'เงินฉุกเฉิน' ? 'เงินสำรองฉุกเฉิน' : 'เงินต้นที่ปล่อยดอก';
   const isInvestment = asset.name === 'Dime' || asset.name === 'GoldNow';
   const hasRate = isInvestment || asset.name === 'ปล่อยดอก';
-  const calc = hasRate ? `<div class="investment-calc"><label class="investment-rate-field"><span>${isInvestment ? 'กำไร/ขาดทุน (%)' : 'ดอกเบี้ย (% ต่อเดือน)'}</span><div class="investment-rate-input"><input class="asset-rate" type="number" min="${isInvestment ? '-100' : '0'}" max="10000" step="0.01" inputmode="decimal" placeholder="0" aria-label="${isInvestment ? `กำไรหรือขาดทุน ${asset.name} เปอร์เซ็นต์` : 'ดอกเบี้ยปล่อยดอกเปอร์เซ็นต์ต่อเดือน'}" value="${asset.ratePercent || ''}"><span>%</span></div></label><div class="investment-calc-result" aria-live="polite"><span>${isInvestment ? 'กำไร/ขาดทุน' : 'ดอกเบี้ยต่อเดือน'}</span><strong class="asset-calculated">฿0</strong>${isInvestment ? '<small class="asset-current-value">มูลค่าประมาณ ฿0</small>' : ''}</div></div>` : '';
-  return `<div class="investment-row" data-asset="${asset.name}"><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-amount"><input class="asset-amount" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0" aria-label="จำนวนเงิน ${asset.name} บาท" value="${asset.amount || ''}"><span>฿</span></div>${calc}</div>`;
+  const isLoss = isInvestment && (asset.rateSign === 'loss' || asset.ratePercent < 0);
+  const direction = isInvestment ? `<div class="investment-direction" role="group" aria-label="เลือกกำไรหรือขาดทุน ${asset.name}"><button type="button" data-rate-sign="gain" aria-pressed="${!isLoss}">กำไร +</button><button type="button" data-rate-sign="loss" aria-pressed="${isLoss}">ขาดทุน −</button></div>` : '';
+  const calc = hasRate ? `<div class="investment-calc"><div class="investment-rate-control">${direction}<label class="investment-rate-field"><span>${isInvestment ? 'เปอร์เซ็นต์ (%)' : 'ดอกเบี้ย (% ต่อเดือน)'}</span><div class="investment-rate-input"><input class="asset-rate" type="number" min="0" max="${isLoss ? '100' : '10000'}" step="0.01" inputmode="decimal" placeholder="0" aria-label="${isInvestment ? `เปอร์เซ็นต์ ${asset.name}` : 'ดอกเบี้ยปล่อยดอกเปอร์เซ็นต์ต่อเดือน'}" value="${Math.abs(asset.ratePercent) || ''}"><span>%</span></div></label></div><div class="investment-calc-result" aria-live="polite"><span>${isInvestment ? 'กำไร/ขาดทุน' : 'ดอกเบี้ยต่อเดือน'}</span><strong class="asset-calculated">฿0</strong>${isInvestment ? '<small class="asset-current-value">มูลค่าประมาณ ฿0</small>' : ''}</div></div>` : '';
+  return `<div class="investment-row" data-asset="${asset.name}"${isInvestment ? ` data-rate-sign="${isLoss ? 'loss' : 'gain'}"` : ''}><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-amount"><input class="asset-amount" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0" aria-label="จำนวนเงิน ${asset.name} บาท" value="${asset.amount || ''}"><span>฿</span></div>${calc}</div>`;
 }
 function readInvestmentForm() {
-  return { assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.dataset.asset, amount: Number(row.querySelector('.asset-amount').value), ...(row.querySelector('.asset-rate') ? { ratePercent: Number(row.querySelector('.asset-rate').value) } : {}) })) };
+  return { assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.dataset.asset, amount: Number(row.querySelector('.asset-amount').value), ...(row.querySelector('.asset-rate') ? { ratePercent: Number(row.querySelector('.asset-rate').value) * (row.dataset.rateSign === 'loss' ? -1 : 1) } : {}), ...(row.dataset.rateSign ? { rateSign: row.dataset.rateSign } : {}) })) };
 }
 function updateInvestmentPreview() {
   const plan = readInvestmentForm();
@@ -205,6 +208,18 @@ async function importCsv(file) { if (user) return toast('กรุณาออ�
 
 $$('[data-view]').forEach((a) => a.addEventListener('click', () => setView(a.dataset.view)));
 $('#investment-form').addEventListener('input', () => { updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
+$('#investment-rows').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-rate-sign]');
+  if (!button) return;
+  const row = button.closest('.investment-row');
+  row.dataset.rateSign = button.dataset.rateSign;
+  row.querySelectorAll('[data-rate-sign]').forEach((choice) => choice.setAttribute('aria-pressed', String(choice === button)));
+  const input = row.querySelector('.asset-rate');
+  input.max = button.dataset.rateSign === 'loss' ? '100' : '10000';
+  if (button.dataset.rateSign === 'loss' && Number(input.value) > 100) input.value = '100';
+  updateInvestmentPreview();
+  $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก';
+});
 $('#investment-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const plan = readInvestmentForm();
   if (plan.assets.length !== INVESTMENT_PLACES.length || plan.assets.some((asset) => !Number.isFinite(asset.amount) || asset.amount < 0 || asset.amount > 999999999)) return toast('กรุณากรอกยอดเงินทั้ง 4 ที่ให้ถูกต้อง');
