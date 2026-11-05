@@ -46,8 +46,8 @@ function hydrateIcons() {
 const LOCAL_KEY = 'daily-money-entries-v1';
 const CONFIG_KEY = 'daily-money-supabase-v1';
 const INVESTMENT_KEY = 'daily-money-investment-plan-v1';
-const INVESTMENT_COLORS = ['#79d8b4', '#e9b766', '#84b7e7'];
-const INVESTMENT_PLACES = ['Dime', 'GoldNow', 'เงินฉุกเฉิน'];
+const INVESTMENT_COLORS = ['#79d8b4', '#e9b766', '#84b7e7', '#c9a2e8'];
+const INVESTMENT_PLACES = ['Dime', 'GoldNow', 'เงินฉุกเฉิน', 'ปล่อยดอก'];
 let entries = readLocal();
 let investmentPlan = readInvestmentLocal();
 let supabase = null;
@@ -133,7 +133,7 @@ function renderReports() {
   $('#week-bars').innerHTML = lastWeek.map((day, i) => `<div class="week-bar" title="${shortDate(dateKey(day))}: ${money(daily[i])}"><div class="bar-track"><span class="${i === 6 ? 'current' : ''}" style="height:${daily[i] ? Math.max(9, daily[i] / peak * 100) : 4}%"></span></div><small>${i === 6 ? 'วันนี้' : new Intl.DateTimeFormat(TH, { weekday: 'short' }).format(day)}</small></div>`).join('');
 }
 function investmentRowHtml(asset) {
-  const detail = asset.name === 'Dime' ? 'เงินออมใน Dime' : asset.name === 'GoldNow' ? 'ทองใน GoldNow' : 'เงินสำรองฉุกเฉิน';
+  const detail = asset.name === 'Dime' ? 'เงินออมใน Dime' : asset.name === 'GoldNow' ? 'ทองใน GoldNow' : asset.name === 'เงินฉุกเฉิน' ? 'เงินสำรองฉุกเฉิน' : 'เงินต้นที่ปล่อยดอก';
   return `<div class="investment-row" data-asset="${asset.name}"><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-amount"><input class="asset-amount" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0" aria-label="จำนวนเงิน ${asset.name} บาท" value="${asset.amount || ''}"><span>฿</span></div></div>`;
 }
 function readInvestmentForm() {
@@ -192,7 +192,7 @@ $$('[data-view]').forEach((a) => a.addEventListener('click', () => setView(a.dat
 $('#investment-form').addEventListener('input', () => { updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
 $('#investment-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const plan = readInvestmentForm();
-  if (plan.assets.length !== 3 || plan.assets.some((asset) => !Number.isFinite(asset.amount) || asset.amount < 0 || asset.amount > 999999999)) return toast('กรุณากรอกยอดเงินทั้ง 3 ที่ให้ถูกต้อง');
+  if (plan.assets.length !== INVESTMENT_PLACES.length || plan.assets.some((asset) => !Number.isFinite(asset.amount) || asset.amount < 0 || asset.amount > 999999999)) return toast('กรุณากรอกยอดเงินทั้ง 4 ที่ให้ถูกต้อง');
   if (plan.assets.every((asset) => asset.amount === 0)) return toast('กรุณากรอกยอดเงินอย่างน้อยหนึ่งที่');
   const button = $('#investment-save'); button.disabled = true; button.textContent = 'กำลังบันทึก…';
   try {
