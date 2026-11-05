@@ -63,12 +63,16 @@ let deleteArmed = false;
 function readLocal() { try { const x = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); return Array.isArray(x) ? x : []; } catch { return []; } }
 function normalizeInvestmentPlan(value) {
   const raw = value && typeof value === 'object' ? value : {};
-  return { budget: Number.isFinite(Number(raw.budget)) && Number(raw.budget) >= 0 ? Number(raw.budget) : 0,
-    assets: INVESTMENT_PLACES.map((name) => {
-      const saved = Array.isArray(raw.assets) ? raw.assets.find((asset) => String(asset?.name || '').toLowerCase() === name.toLowerCase()) : null;
-      const percent = Number(saved?.percent);
-      return { name, percent: Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent : 0 };
-    }) };
+  const oldBudget = Number(raw.budget);
+  return { assets: INVESTMENT_PLACES.map((name) => {
+    const saved = Array.isArray(raw.assets) ? raw.assets.find((asset) => String(asset?.name || '').toLowerCase() === name.toLowerCase()) : null;
+    const directAmount = Number(saved?.amount);
+    const oldPercent = Number(saved?.percent);
+    const amount = saved?.amount !== undefined && Number.isFinite(directAmount) ? directAmount
+      : Number.isFinite(oldBudget) && oldBudget >= 0 && Number.isFinite(oldPercent) && oldPercent >= 0
+        ? Math.round(oldBudget * oldPercent) / 100 : 0;
+    return { name, amount: Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : 0 };
+  }) };
 }
 function readInvestmentLocal() { try { return normalizeInvestmentPlan(JSON.parse(localStorage.getItem(INVESTMENT_KEY) || 'null')); } catch { return normalizeInvestmentPlan(null); } }
 function saveLocal() { localStorage.setItem(LOCAL_KEY, JSON.stringify(entries)); }
@@ -130,25 +134,24 @@ function renderReports() {
 }
 function investmentRowHtml(asset) {
   const detail = asset.name === 'Dime' ? 'เงินออมใน Dime' : 'ทองใน GoldNow';
-  return `<div class="investment-row" data-asset="${asset.name}"><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-percent"><input class="asset-percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0" aria-label="สัดส่วน ${asset.name}" value="${safeText(asset.percent)}" required><span>%</span></div></div>`;
+  return `<div class="investment-row" data-asset="${asset.name}"><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-amount"><input class="asset-amount" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0" aria-label="จำนวนเงิน ${asset.name} บาท" value="${asset.amount || ''}"><span>฿</span></div></div>`;
 }
 function readInvestmentForm() {
-  return { budget: Number($('#investment-budget').value), assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.dataset.asset, percent: Number(row.querySelector('.asset-percent').value) })) };
+  return { assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.dataset.asset, amount: Number(row.querySelector('.asset-amount').value) })) };
 }
 function updateInvestmentPreview() {
   const plan = readInvestmentForm();
-  const totalPercent = plan.assets.reduce((sum, asset) => sum + (Number.isFinite(asset.percent) ? asset.percent : 0), 0);
-  const remaining = Math.round((100 - totalPercent) * 10) / 10;
-  $('#investment-total').textContent = money(plan.budget);
-  $('#investment-count').textContent = 'Dime · GoldNow';
-  $('#investment-sum').textContent = `${totalPercent.toLocaleString(TH, { maximumFractionDigits: 1 })}% จาก 100%`;
-  $('#investment-remaining').textContent = remaining >= 0 ? `เหลือ ${remaining}%` : `เกิน ${Math.abs(remaining)}%`;
-  $('#investment-remaining').classList.toggle('invalid', remaining < 0);
-  $('#investment-strip').innerHTML = plan.assets.filter((asset) => asset.percent > 0).map((asset) => `<span style="width:${asset.percent}%;background:${INVESTMENT_COLORS[INVESTMENT_PLACES.indexOf(asset.name)]}" title="${asset.name} ${asset.percent}%"></span>`).join('');
-  $('#investment-preview').innerHTML = plan.assets.map((asset, index) => `<div class="investment-item"><span class="investment-swatch" style="background:${INVESTMENT_COLORS[index]}"></span><span class="investment-item-name">${asset.name}</span><span class="investment-item-percent">${asset.percent}%</span><strong>${money(plan.budget * asset.percent / 100)}</strong></div>`).join('');
+  const amounts = plan.assets.map((asset) => Number.isFinite(asset.amount) && asset.amount > 0 ? asset.amount : 0);
+  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+  const firstPercent = total ? Math.round(amounts[0] / total * 1000) / 10 : 0;
+  const percents = [firstPercent, total ? Math.round((100 - firstPercent) * 10) / 10 : 0];
+  $('#investment-total').textContent = money(total);
+  $('#investment-sum').textContent = total ? '100% ของยอดรวม' : 'กรอกยอดเงินเพื่อดูสัดส่วน';
+  $('#investment-remaining').textContent = money(total);
+  $('#investment-strip').innerHTML = plan.assets.filter((_, index) => amounts[index] > 0).map((asset) => `<span style="width:${percents[INVESTMENT_PLACES.indexOf(asset.name)]}%;background:${INVESTMENT_COLORS[INVESTMENT_PLACES.indexOf(asset.name)]}" title="${asset.name} ${percents[INVESTMENT_PLACES.indexOf(asset.name)]}%"></span>`).join('');
+  $('#investment-preview').innerHTML = plan.assets.map((asset, index) => `<div class="investment-item"><span class="investment-swatch" style="background:${INVESTMENT_COLORS[index]}"></span><span class="investment-item-name">${asset.name}</span><span class="investment-item-percent">${percents[index]}%</span><strong>${money(amounts[index])}</strong></div>`).join('');
 }
 function renderInvestmentEditor() {
-  $('#investment-budget').value = investmentPlan.budget || '';
   $('#investment-rows').innerHTML = investmentPlan.assets.map(investmentRowHtml).join('');
   $('#investment-status').textContent = user ? 'ซิงก์กับบัญชีของคุณ' : 'บันทึกในเครื่องนี้';
   updateInvestmentPreview();
@@ -181,17 +184,16 @@ async function importCsv(file) { if (user) return toast('กรุณาออ�
 $$('[data-view]').forEach((a) => a.addEventListener('click', () => setView(a.dataset.view)));
 $('#investment-form').addEventListener('input', () => { updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
 $('#investment-form').addEventListener('submit', async (event) => {
-  event.preventDefault(); const plan = readInvestmentForm(); const total = plan.assets.reduce((sum, asset) => sum + asset.percent, 0);
-  if (!Number.isFinite(plan.budget) || plan.budget <= 0) return toast('กรุณากรอกงบลงทุนมากกว่า 0 บาท');
-  if (plan.assets.length !== 2 || plan.assets.some((asset) => !Number.isFinite(asset.percent) || asset.percent < 0 || asset.percent > 100)) return toast('กรุณากรอกสัดส่วน Dime และ GoldNow');
-  if (Math.abs(total - 100) > 0.001) return toast('สัดส่วนทั้งหมดต้องรวมกัน 100%');
+  event.preventDefault(); const plan = readInvestmentForm();
+  if (plan.assets.length !== 2 || plan.assets.some((asset) => !Number.isFinite(asset.amount) || asset.amount < 0 || asset.amount > 999999999)) return toast('กรุณากรอกยอดเงิน Dime และ GoldNow ให้ถูกต้อง');
+  if (plan.assets.every((asset) => asset.amount === 0)) return toast('กรุณากรอกยอดเงินอย่างน้อยหนึ่งที่');
   const button = $('#investment-save'); button.disabled = true; button.textContent = 'กำลังบันทึก…';
   try {
     if (user) { const { data, error } = await supabase.auth.updateUser({ data: { investment_plan: plan } }); if (error) throw error; user = data.user; }
     else localStorage.setItem(INVESTMENT_KEY, JSON.stringify(plan));
     investmentPlan = plan; $('#investment-status').textContent = user ? 'ซิงก์กับบัญชีของคุณ' : 'บันทึกในเครื่องนี้'; toast('บันทึกแผนลงทุนแล้ว');
   } catch (error) { toast(`บันทึกแผนไม่สำเร็จ: ${error.message}`); }
-  finally { button.disabled = false; button.textContent = 'บันทึกแผนลงทุน'; }
+  finally { button.disabled = false; button.textContent = 'บันทึกยอดเงิน'; }
 });
 $$('.add-trigger').forEach((b) => b.addEventListener('click', () => openEntry()));
 $('#home-month').addEventListener('change', (event) => { if (!event.target.value) return; const [year, month] = event.target.value.split('-').map(Number); calendarMonth = new Date(year, month - 1, 1); selectedDate = dateKey(new Date(year, month - 1, Math.min(parseDate(selectedDate).getDate(), new Date(year, month, 0).getDate()))); renderOverview(); });

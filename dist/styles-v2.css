@@ -170,24 +170,21 @@ h3 { font-size: 14px; font-weight: 700; }
 .investment-editor .investment-section-head { margin: 0 0 5px; }
 .investment-help, .investment-footnote { color: var(--muted); font-size: 12px; line-height: 1.7; }
 #investment-form { margin-top: 21px; }
-.investment-budget-label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
-.investment-budget-label span { color: var(--muted); font-weight: 500; }
-#investment-budget, .investment-row input { width: 100%; min-width: 0; min-height: 45px; padding: 10px 12px; border: 1px solid #cbd8d0; border-radius: 11px; background: #fff; color: var(--ink); outline: none; font-size: 14px; }
-#investment-budget:focus, .investment-row input:focus { border-color: var(--green); box-shadow: 0 0 0 3px #d7eee4; }
-.investment-table-head { display: grid; grid-template-columns: 1fr 90px; gap: 10px; margin: 22px 0 8px; color: var(--muted); font-size: 12px; }
+.investment-row input { width: 100%; min-width: 0; min-height: 45px; padding: 10px 12px; border: 1px solid #cbd8d0; border-radius: 11px; background: #fff; color: var(--ink); outline: none; font-size: 14px; }
+.investment-row input:focus { border-color: var(--green); box-shadow: 0 0 0 3px #d7eee4; }
+.investment-table-head { display: grid; grid-template-columns: 1fr 132px; gap: 10px; margin: 16px 0 8px; color: var(--muted); font-size: 12px; }
 .investment-table-head span:last-child { text-align: center; }
 .investment-rows { display: grid; }
-.investment-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px; align-items: center; gap: 10px; min-height: 72px; border-bottom: 1px solid var(--line); }
+.investment-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: 10px; min-height: 72px; border-bottom: 1px solid var(--line); }
 .investment-place { display: grid; gap: 1px; min-width: 0; }
 .investment-place strong { font-size: 15px; }
 .investment-place span { color: var(--muted); font-size: 12px; }
-.investment-percent { position: relative; }
-.investment-percent input { padding-right: 24px; text-align: right; font-variant-numeric: tabular-nums; }
-.investment-percent span { position: absolute; right: 9px; top: 13px; color: var(--muted); font-size: 13px; pointer-events: none; }
+.investment-amount { position: relative; }
+.investment-amount input { padding-right: 25px; text-align: right; font-variant-numeric: tabular-nums; }
+.investment-amount span { position: absolute; right: 9px; top: 13px; color: var(--muted); font-size: 13px; pointer-events: none; }
 .investment-row-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 13px; }
 .investment-row-actions > span { color: var(--muted); font-size: 12px; }
 .investment-row-actions strong { color: var(--green-dark); font-size: 13px; white-space: nowrap; }
-.investment-row-actions strong.invalid { color: var(--expense); }
 .investment-save { width: 100%; margin-top: 23px; }
 .investment-save:disabled { opacity: .65; cursor: wait; }
 .investment-footnote { margin-top: 15px; }
