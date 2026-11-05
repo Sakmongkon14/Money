@@ -176,13 +176,23 @@ h3 { font-size: 14px; font-weight: 700; }
 .investment-table-head { display: grid; grid-template-columns: 1fr 132px; gap: 10px; margin: 16px 0 8px; color: var(--muted); font-size: 12px; }
 .investment-table-head span:last-child { text-align: center; }
 .investment-rows { display: grid; }
-.investment-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: 10px; min-height: 72px; border-bottom: 1px solid var(--line); }
+.investment-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: 10px; min-height: 72px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .investment-place { display: grid; gap: 1px; min-width: 0; }
 .investment-place strong { font-size: 15px; }
 .investment-place span { color: var(--muted); font-size: 12px; }
 .investment-amount { position: relative; }
 .investment-amount input { padding-right: 25px; text-align: right; font-variant-numeric: tabular-nums; }
 .investment-amount span { position: absolute; right: 9px; top: 13px; color: var(--muted); font-size: 13px; pointer-events: none; }
+.investment-calc { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 10px; padding-bottom: 3px; }
+.investment-rate-field { display: grid; gap: 5px; min-width: 0; }
+.investment-rate-field > span, .investment-calc-result > span { color: var(--muted); font-size: 11px; }
+.investment-rate-input { position: relative; }
+.investment-rate-input input { padding-right: 24px; text-align: right; font-variant-numeric: tabular-nums; }
+.investment-rate-input > span { position: absolute; right: 10px; top: 13px; color: var(--muted); font-size: 13px; pointer-events: none; }
+.investment-calc-result { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: 45px; padding: 7px 10px; border-radius: 11px; background: #eef6f1; }
+.investment-calc-result strong { color: var(--green-dark); font-size: 15px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.investment-calc-result strong.negative { color: var(--expense); }
+.investment-calc-result small { color: var(--muted); font-size: 10px; }
 .investment-row-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 13px; }
 .investment-row-actions > span { color: var(--muted); font-size: 12px; }
 .investment-row-actions strong { color: var(--green-dark); font-size: 13px; white-space: nowrap; }

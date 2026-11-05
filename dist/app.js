@@ -71,7 +71,9 @@ function normalizeInvestmentPlan(value) {
     const amount = saved?.amount !== undefined && Number.isFinite(directAmount) ? directAmount
       : Number.isFinite(oldBudget) && oldBudget >= 0 && Number.isFinite(oldPercent) && oldPercent >= 0
         ? Math.round(oldBudget * oldPercent) / 100 : 0;
-    return { name, amount: Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : 0 };
+    const savedRate = Number(saved?.ratePercent);
+    const ratePercent = Number.isFinite(savedRate) && savedRate >= (name === 'Dime' ? -100 : 0) && savedRate <= 10000 ? Math.round(savedRate * 100) / 100 : 0;
+    return { name, amount: Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) / 100 : 0, ...(name === 'Dime' || name === 'ปล่อยดอก' ? { ratePercent } : {}) };
   }) };
 }
 function readInvestmentLocal() { try { return normalizeInvestmentPlan(JSON.parse(localStorage.getItem(INVESTMENT_KEY) || 'null')); } catch { return normalizeInvestmentPlan(null); } }
@@ -133,14 +135,27 @@ function renderReports() {
   $('#week-bars').innerHTML = lastWeek.map((day, i) => `<div class="week-bar" title="${shortDate(dateKey(day))}: ${money(daily[i])}"><div class="bar-track"><span class="${i === 6 ? 'current' : ''}" style="height:${daily[i] ? Math.max(9, daily[i] / peak * 100) : 4}%"></span></div><small>${i === 6 ? 'วันนี้' : new Intl.DateTimeFormat(TH, { weekday: 'short' }).format(day)}</small></div>`).join('');
 }
 function investmentRowHtml(asset) {
-  const detail = asset.name === 'Dime' ? 'เงินออมใน Dime' : asset.name === 'GoldNow' ? 'ทองใน GoldNow' : asset.name === 'เงินฉุกเฉิน' ? 'เงินสำรองฉุกเฉิน' : 'เงินต้นที่ปล่อยดอก';
-  return `<div class="investment-row" data-asset="${asset.name}"><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-amount"><input class="asset-amount" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0" aria-label="จำนวนเงิน ${asset.name} บาท" value="${asset.amount || ''}"><span>฿</span></div></div>`;
+  const detail = asset.name === 'Dime' ? 'เงินต้นใน Dime' : asset.name === 'GoldNow' ? 'ทองใน GoldNow' : asset.name === 'เงินฉุกเฉิน' ? 'เงินสำรองฉุกเฉิน' : 'เงินต้นที่ปล่อยดอก';
+  const isDime = asset.name === 'Dime';
+  const hasRate = isDime || asset.name === 'ปล่อยดอก';
+  const calc = hasRate ? `<div class="investment-calc"><label class="investment-rate-field"><span>${isDime ? 'กำไร/ขาดทุน (%)' : 'ดอกเบี้ย (% ต่อเดือน)'}</span><div class="investment-rate-input"><input class="asset-rate" type="number" min="${isDime ? '-100' : '0'}" max="10000" step="0.01" inputmode="decimal" placeholder="0" aria-label="${isDime ? 'กำไรหรือขาดทุน Dime เปอร์เซ็นต์' : 'ดอกเบี้ยปล่อยดอกเปอร์เซ็นต์ต่อเดือน'}" value="${asset.ratePercent || ''}"><span>%</span></div></label><div class="investment-calc-result" aria-live="polite"><span>${isDime ? 'กำไร/ขาดทุน' : 'ดอกเบี้ยต่อเดือน'}</span><strong class="asset-calculated">฿0</strong>${isDime ? '<small class="asset-current-value">มูลค่าประมาณ ฿0</small>' : ''}</div></div>` : '';
+  return `<div class="investment-row" data-asset="${asset.name}"><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-amount"><input class="asset-amount" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0" aria-label="จำนวนเงิน ${asset.name} บาท" value="${asset.amount || ''}"><span>฿</span></div>${calc}</div>`;
 }
 function readInvestmentForm() {
-  return { assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.dataset.asset, amount: Number(row.querySelector('.asset-amount').value) })) };
+  return { assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.dataset.asset, amount: Number(row.querySelector('.asset-amount').value), ...(row.querySelector('.asset-rate') ? { ratePercent: Number(row.querySelector('.asset-rate').value) } : {}) })) };
 }
 function updateInvestmentPreview() {
   const plan = readInvestmentForm();
+  $$('#investment-rows .investment-row').forEach((row, index) => {
+    const asset = plan.assets[index];
+    if (asset.ratePercent === undefined) return;
+    const change = Math.round((asset.amount * asset.ratePercent / 100) * 100) / 100;
+    const result = row.querySelector('.asset-calculated');
+    result.textContent = `${change > 0 && row.dataset.asset === 'Dime' ? '+' : ''}${money(change)}`;
+    result.classList.toggle('negative', change < 0);
+    const currentValue = row.querySelector('.asset-current-value');
+    if (currentValue) currentValue.textContent = `มูลค่าประมาณ ${money(asset.amount + change)}`;
+  });
   const amounts = plan.assets.map((asset) => Number.isFinite(asset.amount) && asset.amount > 0 ? asset.amount : 0);
   const total = amounts.reduce((sum, amount) => sum + amount, 0);
   const exact = amounts.map((amount) => total ? amount / total * 1000 : 0);
@@ -193,6 +208,7 @@ $('#investment-form').addEventListener('input', () => { updateInvestmentPreview(
 $('#investment-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const plan = readInvestmentForm();
   if (plan.assets.length !== INVESTMENT_PLACES.length || plan.assets.some((asset) => !Number.isFinite(asset.amount) || asset.amount < 0 || asset.amount > 999999999)) return toast('กรุณากรอกยอดเงินทั้ง 4 ที่ให้ถูกต้อง');
+  if (plan.assets.some((asset) => asset.ratePercent !== undefined && (!Number.isFinite(asset.ratePercent) || asset.ratePercent < (asset.name === 'Dime' ? -100 : 0) || asset.ratePercent > 10000))) return toast('กรุณากรอกเปอร์เซ็นต์ให้ถูกต้อง');
   if (plan.assets.every((asset) => asset.amount === 0)) return toast('กรุณากรอกยอดเงินอย่างน้อยหนึ่งที่');
   const button = $('#investment-save'); button.disabled = true; button.textContent = 'กำลังบันทึก…';
   try {
