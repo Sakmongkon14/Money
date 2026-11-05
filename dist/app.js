@@ -46,8 +46,8 @@ function hydrateIcons() {
 const LOCAL_KEY = 'daily-money-entries-v1';
 const CONFIG_KEY = 'daily-money-supabase-v1';
 const INVESTMENT_KEY = 'daily-money-investment-plan-v1';
-const INVESTMENT_COLORS = ['#79d8b4', '#e4ad66', '#82aee2', '#b79cda', '#d4e1b0', '#eaa39b', '#8fd5d2', '#d0b391'];
-const INVESTMENT_SUGGESTIONS = ['หุ้น', 'กองทุน', 'ตราสารหนี้', 'ทองคำ', 'เงินสด', 'คริปโต'];
+const INVESTMENT_COLORS = ['#79d8b4', '#e9b766'];
+const INVESTMENT_PLACES = ['Dime', 'GoldNow'];
 let entries = readLocal();
 let investmentPlan = readInvestmentLocal();
 let supabase = null;
@@ -64,7 +64,11 @@ function readLocal() { try { const x = JSON.parse(localStorage.getItem(LOCAL_KEY
 function normalizeInvestmentPlan(value) {
   const raw = value && typeof value === 'object' ? value : {};
   return { budget: Number.isFinite(Number(raw.budget)) && Number(raw.budget) >= 0 ? Number(raw.budget) : 0,
-    assets: Array.isArray(raw.assets) ? raw.assets.slice(0, 8).map((asset) => ({ name: String(asset?.name || '').slice(0, 40), percent: Number(asset?.percent) || 0 })).filter((asset) => asset.name) : [] };
+    assets: INVESTMENT_PLACES.map((name) => {
+      const saved = Array.isArray(raw.assets) ? raw.assets.find((asset) => String(asset?.name || '').toLowerCase() === name.toLowerCase()) : null;
+      const percent = Number(saved?.percent);
+      return { name, percent: Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent : 0 };
+    }) };
 }
 function readInvestmentLocal() { try { return normalizeInvestmentPlan(JSON.parse(localStorage.getItem(INVESTMENT_KEY) || 'null')); } catch { return normalizeInvestmentPlan(null); } }
 function saveLocal() { localStorage.setItem(LOCAL_KEY, JSON.stringify(entries)); }
@@ -124,29 +128,28 @@ function renderReports() {
   const peak = Math.max(1, ...daily);
   $('#week-bars').innerHTML = lastWeek.map((day, i) => `<div class="week-bar" title="${shortDate(dateKey(day))}: ${money(daily[i])}"><div class="bar-track"><span class="${i === 6 ? 'current' : ''}" style="height:${daily[i] ? Math.max(9, daily[i] / peak * 100) : 4}%"></span></div><small>${i === 6 ? 'วันนี้' : new Intl.DateTimeFormat(TH, { weekday: 'short' }).format(day)}</small></div>`).join('');
 }
-function investmentRowHtml(asset = { name: '', percent: '' }) {
-  return `<div class="investment-row"><input class="asset-name" type="text" maxlength="40" placeholder="ชื่อสินทรัพย์" aria-label="ชื่อสินทรัพย์" value="${safeText(asset.name)}" required><div class="investment-percent"><input class="asset-percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0" aria-label="เปอร์เซ็นต์" value="${asset.percent === '' ? '' : safeText(asset.percent)}" required><span>%</span></div><button class="investment-remove" type="button" aria-label="ลบสินทรัพย์">×</button></div>`;
+function investmentRowHtml(asset) {
+  const detail = asset.name === 'Dime' ? 'เงินออมใน Dime' : 'ทองใน GoldNow';
+  return `<div class="investment-row" data-asset="${asset.name}"><div class="investment-place"><strong>${asset.name}</strong><span>${detail}</span></div><div class="investment-percent"><input class="asset-percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0" aria-label="สัดส่วน ${asset.name}" value="${safeText(asset.percent)}" required><span>%</span></div></div>`;
 }
 function readInvestmentForm() {
-  return { budget: Number($('#investment-budget').value), assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.querySelector('.asset-name').value.trim(), percent: Number(row.querySelector('.asset-percent').value) })) };
+  return { budget: Number($('#investment-budget').value), assets: $$('#investment-rows .investment-row').map((row) => ({ name: row.dataset.asset, percent: Number(row.querySelector('.asset-percent').value) })) };
 }
 function updateInvestmentPreview() {
   const plan = readInvestmentForm();
   const totalPercent = plan.assets.reduce((sum, asset) => sum + (Number.isFinite(asset.percent) ? asset.percent : 0), 0);
   const remaining = Math.round((100 - totalPercent) * 10) / 10;
   $('#investment-total').textContent = money(plan.budget);
-  $('#investment-count').textContent = `${plan.assets.filter((asset) => asset.name).length} สินทรัพย์`;
+  $('#investment-count').textContent = 'Dime · GoldNow';
   $('#investment-sum').textContent = `${totalPercent.toLocaleString(TH, { maximumFractionDigits: 1 })}% จาก 100%`;
   $('#investment-remaining').textContent = remaining >= 0 ? `เหลือ ${remaining}%` : `เกิน ${Math.abs(remaining)}%`;
   $('#investment-remaining').classList.toggle('invalid', remaining < 0);
-  const named = plan.assets.filter((asset) => asset.name && asset.percent > 0);
-  $('#investment-strip').innerHTML = named.map((asset, index) => `<span style="width:${Math.max(0, Math.min(100, asset.percent))}%;background:${INVESTMENT_COLORS[index % INVESTMENT_COLORS.length]}" title="${safeText(asset.name)} ${asset.percent}%"></span>`).join('');
-  $('#investment-preview').innerHTML = named.length ? named.map((asset, index) => `<div class="investment-item"><span class="investment-swatch" style="background:${INVESTMENT_COLORS[index % INVESTMENT_COLORS.length]}"></span><span class="investment-item-name">${safeText(asset.name)}</span><span class="investment-item-percent">${asset.percent}%</span><strong>${money(plan.budget * asset.percent / 100)}</strong></div>`).join('') : '<div class="investment-empty">เพิ่มสินทรัพย์และกำหนดสัดส่วน เพื่อดูจำนวนเงินที่จัดสรร</div>';
-  $('#investment-suggestions').innerHTML = INVESTMENT_SUGGESTIONS.filter((name) => !plan.assets.some((asset) => asset.name === name)).map((name) => `<button type="button" data-suggest="${name}">${name}</button>`).join('');
+  $('#investment-strip').innerHTML = plan.assets.filter((asset) => asset.percent > 0).map((asset) => `<span style="width:${asset.percent}%;background:${INVESTMENT_COLORS[INVESTMENT_PLACES.indexOf(asset.name)]}" title="${asset.name} ${asset.percent}%"></span>`).join('');
+  $('#investment-preview').innerHTML = plan.assets.map((asset, index) => `<div class="investment-item"><span class="investment-swatch" style="background:${INVESTMENT_COLORS[index]}"></span><span class="investment-item-name">${asset.name}</span><span class="investment-item-percent">${asset.percent}%</span><strong>${money(plan.budget * asset.percent / 100)}</strong></div>`).join('');
 }
 function renderInvestmentEditor() {
   $('#investment-budget').value = investmentPlan.budget || '';
-  $('#investment-rows').innerHTML = (investmentPlan.assets.length ? investmentPlan.assets : [{ name: '', percent: '' }]).map(investmentRowHtml).join('');
+  $('#investment-rows').innerHTML = investmentPlan.assets.map(investmentRowHtml).join('');
   $('#investment-status').textContent = user ? 'ซิงก์กับบัญชีของคุณ' : 'บันทึกในเครื่องนี้';
   updateInvestmentPreview();
 }
@@ -177,14 +180,10 @@ async function importCsv(file) { if (user) return toast('กรุณาออ�
 
 $$('[data-view]').forEach((a) => a.addEventListener('click', () => setView(a.dataset.view)));
 $('#investment-form').addEventListener('input', () => { updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
-$('#investment-rows').addEventListener('click', (event) => { if (!event.target.closest('.investment-remove')) return; event.target.closest('.investment-row').remove(); updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
-$('#investment-add').addEventListener('click', () => { if ($$('#investment-rows .investment-row').length >= 8) return toast('เพิ่มได้สูงสุด 8 สินทรัพย์'); $('#investment-rows').insertAdjacentHTML('beforeend', investmentRowHtml()); $('#investment-rows .investment-row:last-child .asset-name').focus(); updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
-$('#investment-suggestions').addEventListener('click', (event) => { const name = event.target.closest('[data-suggest]')?.dataset.suggest; if (!name) return; const blank = $$('#investment-rows .investment-row').find((row) => !row.querySelector('.asset-name').value.trim()); if (blank) blank.querySelector('.asset-name').value = name; else { if ($$('#investment-rows .investment-row').length >= 8) return toast('เพิ่มได้สูงสุด 8 สินทรัพย์'); $('#investment-rows').insertAdjacentHTML('beforeend', investmentRowHtml({ name, percent: '' })); } updateInvestmentPreview(); $('#investment-status').textContent = 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก'; });
 $('#investment-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const plan = readInvestmentForm(); const total = plan.assets.reduce((sum, asset) => sum + asset.percent, 0);
   if (!Number.isFinite(plan.budget) || plan.budget <= 0) return toast('กรุณากรอกงบลงทุนมากกว่า 0 บาท');
-  if (!plan.assets.length || plan.assets.some((asset) => !asset.name || !Number.isFinite(asset.percent) || asset.percent <= 0 || asset.percent > 100)) return toast('กรุณากรอกชื่อและสัดส่วนของทุกสินทรัพย์');
-  if (new Set(plan.assets.map((asset) => asset.name.toLocaleLowerCase(TH))).size !== plan.assets.length) return toast('ชื่อสินทรัพย์ต้องไม่ซ้ำกัน');
+  if (plan.assets.length !== 2 || plan.assets.some((asset) => !Number.isFinite(asset.percent) || asset.percent < 0 || asset.percent > 100)) return toast('กรุณากรอกสัดส่วน Dime และ GoldNow');
   if (Math.abs(total - 100) > 0.001) return toast('สัดส่วนทั้งหมดต้องรวมกัน 100%');
   const button = $('#investment-save'); button.disabled = true; button.textContent = 'กำลังบันทึก…';
   try {
